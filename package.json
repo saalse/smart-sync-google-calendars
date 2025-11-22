@@ -1,0 +1,34 @@
+{
+  "name": "smart-sync-google-calendars",
+  "version": "1.0.0",
+  "description": "Smart sync multiple Google calendars into one unified calendar using Google Apps Script",
+  "private": true,
+  "scripts": {
+    "deploy": "cd scripts && npx clasp push && cd ..",
+    "clasp:create": "cd scripts && npx clasp create --title \"Smart Sync Google Calendars\" --rootDir . && cd ..",
+    "clasp:open": "cd scripts && npx clasp open && cd ..",
+    "clasp:logs": "cd scripts && npx clasp logs && cd ..",
+    "clasp:pull": "cd scripts && npx clasp pull && cd ..",
+    "clasp:version": "cd scripts && npx clasp version && cd ..",
+    "clasp:deploy": "cd scripts && npx clasp deploy && cd .."
+  },
+  "keywords": [
+    "google-calendar",
+    "calendar-sync",
+    "calendar-merge",
+    "google-apps-script",
+    "calendar-integration",
+    "smart-sync",
+    "busy-calendar",
+    "multi-calendar-sync"
+  ],
+  "author": {
+    "name": "Alex Samson",
+    "url": "https://saalse.com"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
+

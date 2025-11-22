@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+
+# Clasp configuration (contains script ID)
+scripts/.clasp.json
+
+# Config file with sensitive calendar data
+scripts/Config.gs
+
+# Package lock
+package-lock.json
+
+# Editor (keep .vscode for Cursor but don't commit)
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
