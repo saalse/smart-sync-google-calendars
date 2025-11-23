@@ -1,83 +1,54 @@
 # Smart Sync Google Calendars
 
-A free, unlimited solution to sync multiple Google calendars into one unified "Busy Time" calendar using Google Apps Script.
+A free, secure, and unlimited solution to sync multiple Google calendars into one unified "Busy Time" calendar using Google Apps Script.
 
 ## Why This Project?
 
-**The Need:** You have multiple calendars (personal, multiple work accounts) and want to:
-- Share your real availability with family to find time for calls and activities
-- Show teammates your actual schedule in their native calendar app (no Calendly needed)
-- Consolidate calendars from different Google accounts into one view
+**The Problem:** Active lifestyle, flexible schedule, remote work culture. When you have multiple calendar accounts (I'm juggling 4 at the moment, so I know what I'm talking about), sharing real availability becomes a mess. You need automation that shows your actual busy/free time to both family and teammates without compromising privacy or flexibility.
 
-**Why Not Use karbassi's Solution?** 
+**Why Not Calendly and other SaaS Solutions?**
+- 🔒 **Privacy concerns** - Full calendar access to third parties. You have to pray they don't sell your data and actually care about security (usually, they don't)
+- 🔗 **Not native** - Recipients must click external links instead of seeing your schedule directly in their calendar
+- 📧 **Single calendar limitation** - Must choose one "main" calendar for invitations, losing flexibility
+- 💰 **You have to pay** for simple feature just for syncing busy/free time
 
-This project is inspired by [karbassi/sync-multiple-google-calendars](https://github.com/karbassi/sync-multiple-google-calendars), but completely rewrites the sync logic. The original deletes and recreates all events every time, which quickly hits Google's API limits when syncing a year ahead with frequent updates. 
+**Why Not Zapier?**
+Complex setup, recurring costs, and limitations when Google Calendar API + Apps Script natively supports everything for free.
 
-**Key Features:**
+**How I Got Here:**  
+After trying everything, I found [Sync Multiple Google Calendars by karbassi](https://github.com/karbassi/sync-multiple-google-calendars). Loved the concept, but it wasn't suitable for active life with many events and far-ahead planning culture. The delete-and-recreate approach was hitting Google's API limits daily. 
+
+So I used Cursor to completely rewrite the algorithm, making it sync each event individually on create/change/delete. Now it handles any busy bee schedule within API limitations. 
+
+## Key Features
+
 - ✅ **Smart sync by changes only** - Updates, creates, or deletes only what changed
-- ✅ **99% fewer API calls** - Typically 5-10 calls/day vs 600+ with original approach
-- ✅ **Year-ahead syncing that actually works** - While configurable in original, smart sync makes 365 days future + 30 days past practical without hitting API limits
-- ✅ **Fast execution** - < 30 seconds typical runtime
+- ✅ **Year-ahead syncing that works** - 365 days future without hitting API limits
+- ✅ **Multiple source calendars** - Sync from unlimited calendars simultaneously
+- ✅ **Fast & efficient** - < 30 seconds typical runtime, uses batch API requests
+- ✅ **Event-based triggers** - Syncs automatically when calendars update (near-instant)
+- ✅ **Smart filtering** - Skips "free" events, preserves locations
 - ✅ **Free & unlimited** - No third-party services or subscriptions
-- ✅ **Privacy-focused** - Descriptions excluded, runs entirely in your Google account
+- ✅ **Duplicate Prevention**: Handles concurrent executions safely
+- ✅ **Timezone independent** - Works regardless of where you travel
+- ✅ **Developer-friendly** - Open source, well-documented, CLI setup for AI agents
+
+### Privacy & Security
+
+- ✅ **No data sharing**: Events never leave your Google account
+- ✅ **Privacy-focused** - Runs entirely in your Google account, no external servers
+- ✅ **You're in control**: Open source, modify as needed
+- ✅ **Secure by default**: Uses Google's OAuth for authentication
 
 ## Getting Started
 
 Choose your setup method:
 
 - **[UI-Based Setup](./docs/setup-ui-based.md)** ← Start here! Browser-only, no command-line tools needed
-- **[CLI-Based Setup](./docs/setup-cli-based.md)** ← For developers who want local editing and Git workflow
+- **[CLI-Based Setup](./docs/setup-cli-based.md)** ← For developers who want local editing and Git workflow, with [clasp](https://github.com/google/clasp), the Apps Script CLI to streamline development with AI coding agents.
 
-## How It Works
 
-```
-┌─────────────────────┐
-│ Personal Calendar   │──┐
-│ (user@gmail.com)    │  │
-└─────────────────────┘  │
-                         │
-┌─────────────────────┐  │     ┌──────────────────┐
-│ Work Calendar 1     │──┼────►│   Busy Time      │──► Google or iCloud
-│ (work1@company.com) │  │     │    Calendar      │    (shared)
-└─────────────────────┘  │     └──────────────────┘
-                         │
-┌─────────────────────┐  │     Events show as:
-│ Work Calendar 2     │──┘     • [personal] Dental Appointment
-│ (work2@company.com) │        • [work1] Client Meeting
-└─────────────────────┘        • [work2] Design Review
-
-Google Apps Script runs automatically when
-any source calendar updates (trigger-based)
-```
-
-## Features
-
-- **Multiple Source Calendars**: Sync from 4+ calendars simultaneously
-- **Automatic Prefixes**: Events tagged with source calendar name (e.g., `[personal]`, `[saalse]`)
-- **Privacy Controls**: Descriptions excluded, locations included
-- **Smart Filtering**: Skips "free" events, preserves conference links
-- **Wide Sync Window**: 30 days past, 365 days future
-- **Smart Updates**: Only syncs events that have changed (99% reduction in API calls)
-- **Efficient Updates**: Uses batch API requests and pagination for speed
-- **Duplicate Prevention**: Handles concurrent executions safely
-- **Event-Based Triggers**: Syncs when calendars update (near-instant)
-- **Timezone Independent**: Works regardless of where you travel
-
-## What Gets Synced
-
-| Data | Synced? | Notes |
-|------|---------|-------|
-| Event title | ✅ Yes | With prefix like `[personal]` |
-| Start/end time | ✅ Yes | Preserves original timezone |
-| Location | ✅ Yes | For context |
-| Conference links | ✅ Yes | Zoom, Meet, etc. |
-| Description | ❌ No | Privacy |
-| Attendees | ❌ No | Privacy |
-| Free/transparent events | ❌ No | Not shown as busy |
-
-## Architecture
-
-### How Smart Sync Works
+## How Smart Sync Works
 
 The sync uses an intelligent update approach that only modifies events that have actually changed:
 
@@ -91,6 +62,18 @@ The sync uses an intelligent update approach that only modifies events that have
    - **Skip**: Unchanged events (no API calls needed)
 5. **Execute phase**: Only create, update, or delete events that actually changed
 6. **Done**: Changes appear in target calendar with minimal API usage
+
+### What Gets Synced
+
+| Data | Synced? | Notes |
+|------|---------|-------|
+| Event title | ✅ Yes | With prefix like `[personal]` |
+| Start/end time | ✅ Yes | Preserves original timezone |
+| Location | ✅ Yes | For context |
+| Conference links | ✅ Yes | Zoom, Meet, etc. |
+| Description | ❌ No | Privacy |
+| Attendees | ❌ No | Privacy |
+| Free/transparent events | ❌ No | Not shown as busy |
 
 ### Technical Implementation Details
 
@@ -126,17 +109,9 @@ Having issues? See the detailed troubleshooting sections in the setup guides:
 - [UI-Based Setup Troubleshooting](./docs/setup-ui-based.md#troubleshooting)
 - [CLI-Based Setup Troubleshooting](./docs/setup-cli-based.md#troubleshooting)
 
-## Privacy & Security
-
-- **No external servers**: Runs entirely in Google Apps Script
-- **No data sharing**: Events never leave your Google account
-- **Description privacy**: Descriptions are never synced
-- **You're in control**: Open source, modify as needed
-- **Secure by default**: Uses Google's OAuth for authentication
-
 ## Credits
 
-**Created by:** Alex Samson ([@saalse](https://github.com/saalse)) with Cursor AI assistant
+**Vibe-coded by:** [Alex Samson](https://saalse.com) with Cursor AI assistant.
 
 **Inspired by:** [karbassi/sync-multiple-google-calendars](https://github.com/karbassi/sync-multiple-google-calendars) by Ali Karbassi - Original concept of syncing multiple calendars with prefixes. The core sync logic has been completely rewritten to use smart updates instead of delete-and-recreate.
 
