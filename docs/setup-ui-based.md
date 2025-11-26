@@ -363,10 +363,9 @@ You can monitor sync activity:
 **Problem:** Events appearing multiple times in the target calendar.
 
 **Solutions:**
-1. The script has built-in duplicate prevention, but if you see duplicates:
-2. Check that you don't have multiple triggers for the same calendar (Triggers page)
-3. Delete all events from the target calendar and run the sync once manually to reset
-4. Don't create triggers until you've confirmed the sync works correctly with manual runs
+1. The script includes advanced duplicate prevention using `LockService` to handle concurrent executions.
+2. This prevents race conditions when multiple triggers fire simultaneously (e.g. adding multiple events quickly).
+3. If you still see duplicates, delete all events from the target calendar and run the sync once manually to reset.
 
 ### Wrong Event Times
 

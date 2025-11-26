@@ -440,20 +440,6 @@ npx clasp login
 npx clasp whoami
 ```
 
-### Issue: Rate Limits / Quotas
-
-**Problem:** Script fails due to quota limits.
-
-**Solution:**
-- Google Apps Script allows 5,000 calendar events created per day
-- The smart sync only updates changed events, so this is rarely an issue
-- If you hit limits, reduce the sync window in `scripts/Config.gs`:
-  ```javascript
-  const SYNC_DAYS_IN_PAST = 7      // Reduce from 30
-  const SYNC_DAYS_IN_FUTURE = 180  // Reduce from 365
-  ```
-- Check quota usage at: [Google Cloud Console](https://console.cloud.google.com/)
-
 ### Issue: clasp Push Fails
 
 **Problem:** `npm run deploy` fails with an error.
@@ -466,7 +452,14 @@ npx clasp whoami
 
 ### General Troubleshooting
 
-For general sync issues (events not syncing, calendar errors, authorization problems):
+For common sync issues not specific to CLI:
+- Events not syncing
+- Calendar not found errors
+- Authorization issues
+- Duplicate events
+- Wrong event times
+- Triggers not firing
+- Quota/rate limits exceeded
 
 **→ See [UI Setup Guide - Troubleshooting](./setup-ui-based.md#troubleshooting) for comprehensive troubleshooting guide.**
 
@@ -587,3 +580,6 @@ If you make improvements that others might benefit from:
 ---
 
 **Happy vibe-coding!** 🚀 You now have a full local development environment for managing your calendar sync script.
+
+
+

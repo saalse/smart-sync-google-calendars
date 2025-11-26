@@ -29,7 +29,7 @@ So I used Cursor to completely rewrite the algorithm, making it sync each event 
 - ✅ **Event-based triggers** - Syncs automatically when calendars update (near-instant)
 - ✅ **Smart filtering** - Skips "free" events, preserves locations
 - ✅ **Free & unlimited** - No third-party services or subscriptions
-- ✅ **Duplicate Prevention**: Handles concurrent executions safely
+- ✅ **Duplicate Prevention**: Handles concurrent executions safely with LockService
 - ✅ **Timezone independent** - Works regardless of where you travel
 - ✅ **Developer-friendly** - Open source, well-documented, CLI setup for AI agents
 

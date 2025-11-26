@@ -22,15 +22,35 @@
 const ENDPOINT_BASE = "https://www.googleapis.com/calendar/v3/calendars"
 
 function SyncCalendarsIntoOne() {
-  const startTime = new Date()
-  startTime.setHours(0, 0, 0, 0)
-  startTime.setDate(startTime.getDate() - SYNC_DAYS_IN_PAST)
+  // Acquire lock to prevent concurrent executions from multiple triggers
+  const lock = LockService.getScriptLock()
+  
+  try {
+    // Try to acquire lock for up to 30 seconds
+    // If another execution is running, this will wait (queue up)
+    // If it can't get the lock after 30s, it means the other execution is stuck or very long
+    if (!lock.tryLock(30000)) {
+      console.log('Could not acquire lock after 30 seconds. Another sync is running. Skipping this execution to prevent race conditions.')
+      return
+    }
 
-  const endTime = new Date()
-  endTime.setHours(0, 0, 0, 0)
-  endTime.setDate(endTime.getDate() + SYNC_DAYS_IN_FUTURE + 1)
+    const startTime = new Date()
+    startTime.setHours(0, 0, 0, 0)
+    startTime.setDate(startTime.getDate() - SYNC_DAYS_IN_PAST)
 
-  executeSmartSync(startTime, endTime)
+    const endTime = new Date()
+    endTime.setHours(0, 0, 0, 0)
+    endTime.setDate(endTime.getDate() + SYNC_DAYS_IN_FUTURE + 1)
+
+    executeSmartSync(startTime, endTime)
+    
+  } catch (e) {
+    console.error('Sync failed with error: ' + e.toString())
+    // We re-throw or just log depending on preference, but logging is usually enough for triggers
+  } finally {
+    // CRITICAL: Always release the lock so the next queued execution can run
+    lock.releaseLock()
+  }
 }
 
 /**

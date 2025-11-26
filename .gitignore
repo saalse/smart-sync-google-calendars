@@ -10,7 +10,7 @@ scripts/Config.gs
 # Package lock
 package-lock.json
 
-# Editor (keep .vscode for Cursor but don't commit)
+# Editor
 .vscode/
 *.swp
 *.swo
