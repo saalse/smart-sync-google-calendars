@@ -1,4 +1,8 @@
-# Configuration & Setup Guide
+---
+title: "Configuration & Setup Guide"
+sidebarTitle: UI-based setup
+description: Set up the sync in the Apps Script editor, browser only.
+---
 
 This guide walks you through setting up Smart Sync Google Calendars using the **Apps Script Editor** (UI-based method). This is the easiest way to get started — no command-line tools required!
 
@@ -19,7 +23,7 @@ By the end of this guide, you'll have:
 - AI assistant integration (Cursor, GitHub Copilot)
 - Command-line deployment workflow
 
-**→ See the [CLI Setup Guide](./setup-cli-based.md) for the CLI/clasp method.**
+**→ See the [CLI Setup Guide](/setup-cli-based) for the CLI/clasp method.**
 
 Otherwise, continue below for the UI-based setup! ⬇️
 
@@ -464,7 +468,7 @@ To keep an eye on your sync:
 
 If you want to switch to local file editing and version control for ongoing maintenance:
 
-1. Follow the [CLI Setup Guide](./setup-cli-based.md) to set up clasp
+1. Follow the [CLI Setup Guide](/setup-cli-based) to set up clasp
 2. Pull your existing script to your local machine
 3. Edit files locally and deploy changes with `npm run deploy`
 4. Your triggers and config will remain intact
@@ -474,8 +478,8 @@ If you want to switch to local file editing and version control for ongoing main
 - **Calendar API Documentation:** [Google Calendar API Docs](https://developers.google.com/calendar/api)
 - **Apps Script Documentation:** [Google Apps Script Docs](https://developers.google.com/apps-script)
 - **Project Repository:** [GitHub](https://github.com/saalse/smart-sync-google-calendars)
-- **For CLI Setup:** See [CLI Setup Guide](./setup-cli-based.md)
-- **For Code Updates:** See [Updating Deployments Guide](./updating-deployments.md)
+- **For CLI Setup:** See [CLI Setup Guide](/setup-cli-based)
+- **For Code Updates:** See [Updating Deployments Guide](/updating-deployments)
 
 ---
 
