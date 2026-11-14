@@ -1,0 +1,19 @@
+{
+  "name": "Smart Sync Google Calendars",
+  "colors": {
+    "primary": "#1A73E8"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Smart Sync Google Calendars",
+        "pages": [
+          "index",
+          "setup-ui-based",
+          "setup-cli-based",
+          "updating-deployments"
+        ]
+      }
+    ]
+  }
+}
