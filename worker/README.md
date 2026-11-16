@@ -89,28 +89,36 @@ Until all three exist, the Worker answers `500 not_configured`.
 
 ## Plan and CPU
 
-The Workers **Free plan allows 10 ms of CPU per request**. Apps Script asks only for today and the next
-`ICLOUD_DAYS_AHEAD` days (default 30), and iCloud returns only the events in that range.
+The Workers **Free plan allows 10 ms of CPU per HTTP request**. Time spent waiting on iCloud doesn't count, and
+loading the script (startup) has its own 1 s limit. An isolate also tolerates infrequent overruns; only a Worker
+that hits the limit consistently gets cut off (Cloudflare's limits docs). Apps Script asks only for today and the
+next `ICLOUD_DAYS_AHEAD` days (default 30), and iCloud returns only the events in that range.
 
-`npm run bench [days]` replays a synthetic calendar (about one event a day, two daily series running for years,
-two weekly series with moves and exclusions) through the real handler. Results on a recent Mac:
+`npm run bench -- [days]` (or `npm run bench -- version`) replays a synthetic calendar (about one event a day, two
+daily series running for years, two weekly series with moves and exclusions) through the real handler. "First
+call" is the first request served by freshly loaded code: the benchmark warms up Node's own Request/Response,
+WebCrypto and Intl first, because in workerd those are built in. Results on a recent Mac:
 
-| Days ahead | Warm (median) | Cold (fresh process) |
-|---|---|---|
-| 7 | ~5 ms | ~95 ms |
-| 30 | ~7–8 ms | ~100 ms |
-| 60 | ~10–12 ms | ~115 ms |
-| 366 | ~38 ms | ~190 ms |
+| Request | 1st call | 2nd | 3rd | Warm (median) |
+|---|---|---|---|---|
+| `/version` | ~17 ms | ~4 ms | ~3 ms | ~1.5 ms |
+| `/busy`, 7 days ahead | ~45 ms | ~18 ms | ~20 ms | ~5 ms |
+| `/busy`, **30 days ahead** | **~50 ms** | **~28 ms** | **~20 ms** | **~7 ms** |
+| `/busy`, 60 days ahead | ~60 ms | ~45 ms | ~35 ms | ~10 ms |
+| `/busy`, 366 days ahead | ~135 ms | ~80 ms | ~48 ms | ~39 ms |
 
-A warm Worker fits in Free at 30 days. A freshly started one does not: most of the cold time is one-off
-compilation of the library code, whatever the window. `/version` is ~2 ms warm and ~45 ms cold. How often
-Cloudflare starts a fresh Worker for a request every 5 minutes only shows in production: check CPU time in the
-dashboard (Workers & Pages → the Worker → Metrics). When nothing has changed, the ctag-keyed cache answers
-`/busy` without parsing anything (if the cache works on your domain; the `cache` field in the response tells you).
+The first calls on fresh code cost more because V8 compiles the library code as it goes. `/version` runs every 5
+minutes and is nearly always within the limit. `/busy` runs rarely (when something changed, once a day, and on
+Google-triggered syncs), so it often meets code that isn't warm yet and goes over. Whether Cloudflare treats that
+as "infrequent" only shows in production: Workers & Pages → the Worker → **Metrics** → Errors → Invocation
+Statuses → **Exceeded CPU Time Limits**. The per-request CPU time is also in the Workers Logs invocation log. When
+nothing has changed, the ctag-keyed cache answers `/busy` without parsing anything (if the cache works on your
+domain; the `cache` field in the response tells you).
 
-If a request goes over the limit, Cloudflare returns an error page. Apps Script treats that as a failed read: it
-deletes nothing and retries later. If that happens often, use a shorter horizon or **Workers Paid**; the code is
-the same.
+A request over the limit gets Cloudflare error 1102 ("Worker exceeded resource limits"), not JSON. Apps Script
+treats that as a failed read: it deletes nothing and retries later. If it happens regularly, shorten the horizon or
+move the Worker (Deno Deploy's free plan lists no per-request CPU limit on its pricing page; check its limits page
+first) or to Workers Paid.
 
 ## Logs
 

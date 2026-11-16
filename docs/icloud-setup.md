@@ -40,11 +40,10 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
    openssl rand -base64 32
    ```
 
-3. **Cloudflare Worker.** Turn on 2FA for the Cloudflare account. Start on the **Free** plan (10 ms of CPU per
-   request): with the default 30-day horizon, a warm Worker needs about 7–8 ms per `/busy` in the benchmark
-   (`npm run bench` in `worker/`). A request that lands on a freshly started Worker can need much more (about
-   100 ms in the benchmark, mostly one-off compilation of the library code), so check step 10a after a day. Then,
-   in `worker/`:
+3. **Cloudflare Worker.** Turn on 2FA for the Cloudflare account. Use the **Free** plan: 10 ms of CPU per request,
+   with some tolerance for infrequent overruns. In the benchmark (`npm run bench` in `worker/`), `/version` needs
+   ~1.5 ms and `/busy` with the default 30-day horizon ~7 ms once warm. The first `/busy` calls on freshly loaded
+   code need 20–50 ms, so check step 10a after a day. Then, in `worker/`:
    ```bash
    npm install
    ```
@@ -101,10 +100,12 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
     source Time-driven, Minutes timer, Every 5 minutes. Set failure notifications to daily.
 
 10a. **After a day, check the Worker's CPU.** Cloudflare dashboard → Workers & Pages → `icloud-busy-feed` →
-    Metrics: look at CPU time and at errors for exceeded resource limits. In the Apps Script executions, look for
-    `iCloud: FAILED (http 503, not JSON)` or `/version failed`. Occasional failures are harmless: the next
-    check retries and nothing is deleted meanwhile. If they are frequent, shorten `ICLOUD_DAYS_AHEAD`, or switch
-    the Worker to **Workers Paid** (the code stays the same).
+    **Metrics** → Errors → Invocation Statuses: count **Exceeded CPU Time Limits** (error 1102). The CPU time of
+    each request is in the Workers Logs invocation log. In the Apps Script executions, look for
+    `iCloud: FAILED (http …, not JSON)` or `/version failed`. Occasional failures are harmless: the next check
+    retries, and nothing is deleted in the meantime. If they are regular (for example, most `/busy` calls), shorten
+    `ICLOUD_DAYS_AHEAD`, or move the Worker (Deno Deploy's free plan, after checking its limits page) or to Workers
+    Paid.
 
 11. **Live test.** Create a test event in a chosen iCloud calendar. Within about 5 minutes a `Busy` event with no
     title should appear in the proxy. Move it, and the Busy event moves. Delete it, and the Busy event
@@ -142,7 +143,7 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
 | `iCloud: FAILED (http 500 not_configured)` | a Worker secret is missing | step 3 |
 | `…: failed (not_found)` | no iCloud calendar has that exact name | fix `ICLOUD_CALENDARS` |
 | `…: failed (parse_failed)` | the Worker could not read an event in that calendar | `npx wrangler tail`, then open an issue with the calendar app and event type (never the event itself) |
-| `iCloud: FAILED (http 503, not JSON)` | Cloudflare error page, e.g. CPU limit exceeded | if frequent: shorter `ICLOUD_DAYS_AHEAD` or Workers Paid (step 10a) |
-| `iCloud check: /version failed (http 503, not JSON)` | same, on the cheap check | same |
+| `iCloud: FAILED (http …, not JSON)` | Cloudflare error page, e.g. error 1102 (CPU limit exceeded) | if regular: step 10a |
+| `iCloud check: /version failed (http …, not JSON)` | same, on the cheap check | same |
 | `requested window is outside the iCloud horizon` | the caller asked only for dates beyond `ICLOUD_DAYS_AHEAD` | nothing to fix |
 | `iCloud check: backing off …` | a read failed less than 15 minutes ago | wait, or fix the cause above |

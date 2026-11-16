@@ -523,8 +523,8 @@ are pinned exactly in `package.json`.
 ## 16. Open questions for the owner
 
 1. **Cloudflare plan.** Free gives 10 ms CPU per request. *Decided after the phase 2 benchmark (§17): read only
-   today + 30 days and start on Free; watch CPU time in the dashboard after a day; Workers Paid if cold-start
-   failures are frequent.*
+   today + 30 days, stay on Free, and check Exceeded CPU Time Limits after a day. If overruns are regular: a
+   shorter horizon, Deno Deploy, or Workers Paid.*
 2. **Commit the tests** in `worker/test/` and `tests/apps-script/` (proposed: yes, they contain only synthetic data).
 3. **Alarm by thrown error** after 24 h without a successful iCloud read, giving Google's failure email (proposed: yes).
 
@@ -535,19 +535,28 @@ are pinned exactly in `package.json`.
    with 20 moves and two EXDATEs each. Like iCloud's time-range filter, only objects that can overlap the window are
    returned. On a recent Mac (Node 24, the same V8 family as workerd):
 
-   | Window | Warm median | Cold (fresh process) |
-   |---|---|---|
-   | first build, 396 days, no time-range filtering in the mock | 545 ms | 858 ms |
-   | 366 days ahead, after optimization | ~38 ms | ~190 ms |
-   | **30 days ahead (default)** | **~7–8 ms** | **~100 ms** |
-   | 7 days ahead | ~5 ms | ~95 ms |
+   | Request | 1st call on fresh code | 2nd | 3rd | Warm median |
+   |---|---|---|---|---|
+   | first build: `/busy`, 396 days, no time-range filtering in the mock | 858 ms | | | 545 ms |
+   | `/version` | ~17 ms | ~4 ms | ~3 ms | ~1.5 ms |
+   | `/busy`, 366 days ahead | ~135 ms | ~80 ms | ~48 ms | ~39 ms |
+   | **`/busy`, 30 days ahead (default)** | **~50 ms** | **~28 ms** | **~20 ms** | **~7 ms** |
+   | `/busy`, 7 days ahead | ~45 ms | ~18 ms | ~20 ms | ~5 ms |
 
-   `/version`: ~2 ms warm, ~45 ms cold. A warm Worker fits Free's 10 ms at 30 days; a cold start doesn't, whatever
-   the window, because it is mostly one-off compilation of tsdav/xml-js/ical.js code. How often Cloudflare cold
-   starts for one request every 5 minutes only shows in production, so the owner starts on Free, checks CPU time
-   after a day, and moves to Workers Paid if failures are frequent (each failure is safe: nothing is deleted and
-   the next check retries). A local `wrangler dev` (workerd) smoke test against the mock behaved like Node. The
-   optimizations:
+   "1st call" excludes Node's own warm-up (Request/Response, WebCrypto and Intl are JS in Node, built in in
+   workerd) and module loading (Workers count that as startup, with a separate 1 s limit). An earlier version of
+   the benchmark included both and reported ~100 ms "cold" at 30 days.
+
+   What Cloudflare's limits docs say (checked in context7): 10 ms of CPU per HTTP request on Free; waiting on the
+   network doesn't count; startup has its own 1 s limit; and "each isolate has some built-in flexibility" for a
+   Worker that infrequently runs over, while one that hits the limit consistently is terminated. Over the limit →
+   error 1102, shown under Metrics → Errors → Invocation Statuses → Exceeded CPU Time Limits. So `/version` (every
+   5 minutes) fits; `/busy` (rare, so often on code that isn't warm yet) will often go over, and only production
+   shows whether that counts as infrequent. Decision: stay on Free, check the metric after a day (setup step 10a).
+   Fallbacks: a shorter horizon; Deno Deploy's free plan (1M requests and 10 h active CPU a month, no per-request
+   CPU limit listed on its pricing page; not yet checked against its limits page); Vercel Hobby (1M invocations,
+   4 h active CPU); Workers Paid. A local `wrangler dev` (workerd) smoke test against the mock behaved like Node.
+   The optimizations:
    - **Shared VTIMEZONEs.** Every iCloud object repeats the same VTIMEZONE, and ical.js expands its DST rules from
      1970 the first time each copy is used. One hydrated zone per distinct VTIMEZONE text is now shared across
      objects (via the root component's `_timezoneCache`; ical.js is pinned to 2.2.1, and the tests would catch a
