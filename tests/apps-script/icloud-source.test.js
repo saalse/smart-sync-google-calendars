@@ -16,8 +16,10 @@ const CONFIG = {
   MIRROR_EXTRA_PROVIDERS: ["fetchICloudBusyIntervals"],
 }
 const PROPS = { ICLOUD_FEED_URL: FEED + "/", ICLOUD_FEED_TOKEN: TOKEN }
-const START = new Date("2026-11-16T00:00:00Z")
-const END = new Date("2026-11-30T00:00:00Z")
+// MirrorBusy's window (30 days back, a year ahead) seen from a fixed "now".
+const NOW = Date.parse("2026-11-17T10:00:00Z")
+const START = new Date("2026-10-18T00:00:00Z")
+const END = new Date("2027-11-18T00:00:00Z")
 const HOUR = 3600 * 1000
 
 function busyBody(overrides = {}) {
@@ -42,7 +44,7 @@ const iso = (msAgo) => new Date(Date.now() - msAgo).toISOString()
 // --- fetchICloudBusyIntervals -------------------------------------------------------------------------------------
 
 test("maps timed and all-day intervals to the MirrorBusy shape with readable keys", () => {
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
   const result = env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(result.ok, true)
   assert.deepEqual(JSON.parse(JSON.stringify(result.intervals)), [
@@ -51,14 +53,15 @@ test("maps timed and all-day intervals to the MirrorBusy shape with readable key
   ])
 })
 
-test("calls /busy with the bearer token, short timeout and encoded repeated calendars", () => {
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+test("calls /busy for the horizon only, with the bearer token, short timeout and encoded calendars", () => {
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
   env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(env.fetches.length, 1)
   const { url, params } = env.fetches[0]
   assert.equal(url,
     FEED + "/busy?calendars=Calendar%20A&calendars=Calendar%20B%20%2B%20More" +
-    "&start=2026-11-16T00%3A00%3A00.000Z&end=2026-11-30T00%3A00%3A00.000Z&tz=Europe%2FBerlin")
+    // yesterday 00:00 UTC → + 30 + 2 days
+    "&start=2026-11-16T00%3A00%3A00.000Z&end=2026-12-18T00%3A00%3A00.000Z&tz=Europe%2FBerlin")
   assert.equal(params.method, "get")
   assert.equal(params.headers.Authorization, "Bearer " + TOKEN)
   assert.equal(params.muteHttpExceptions, true)
@@ -66,7 +69,7 @@ test("calls /busy with the bearer token, short timeout and encoded repeated cale
 })
 
 test("success stores the version and the ok time", () => {
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
   env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(env.properties.getProperty("ICLOUD_LAST_VERSION"), VERSION)
   assert.ok(Date.now() - Date.parse(env.properties.getProperty("ICLOUD_LAST_OK_AT")) < 5000)
@@ -81,7 +84,7 @@ for (const [name, response] of [
   ["missing version", { code: 200, body: busyBody({ version: null }) }],
 ]) {
   test("ok:false on " + name + "; records the failure, keeps the version", () => {
-    const env = load({ config: CONFIG, properties: { ...PROPS, ICLOUD_LAST_VERSION: VERSION_2 }, responses: [response] })
+    const env = load({ now: NOW, config: CONFIG, properties: { ...PROPS, ICLOUD_LAST_VERSION: VERSION_2 }, responses: [response] })
     const result = env.context.fetchICloudBusyIntervals(START, END)
     assert.equal(result.ok, false)
     assert.ok(result.reason)
@@ -96,7 +99,7 @@ test("a failed calendar makes ok false but intervals from ok calendars are still
     ok: false,
     calendars: [{ name: "Calendar A", ok: true, count: 1 }, { name: "Calendar B + More", ok: false, error: "query_failed", count: 0 }],
   })
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body }] })
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body }] })
   const result = env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(result.ok, false)
   assert.deepEqual([...result.intervals.map((i) => i.key)], ["Calendar A|uid-1|20261117T090000Z"])
@@ -105,7 +108,7 @@ test("a failed calendar makes ok false but intervals from ok calendars are still
 
 test("a configured calendar missing from the response makes ok false", () => {
   const body = busyBody({ calendars: [{ name: "Calendar A", ok: true, count: 1 }] })
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body }] })
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body }] })
   const result = env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(result.ok, false)
   assert.deepEqual([...result.intervals.map((i) => i.key)], ["Calendar A|uid-1|20261117T090000Z"])
@@ -120,7 +123,7 @@ test("an invalid interval makes ok false, is dropped, the rest stays", () => {
     { calendar: "Calendar A", id: "", start: "2026-11-17T10:00:00Z", end: "2026-11-17T11:00:00Z", allDay: false }, // no id
   ]
   for (const interval of bad) {
-    const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody({ intervals: [...busyBody().intervals, interval] }) }] })
+    const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody({ intervals: [...busyBody().intervals, interval] }) }] })
     const result = env.context.fetchICloudBusyIntervals(START, END)
     assert.equal(result.ok, false, JSON.stringify(interval))
     assert.equal(result.intervals.length, 2)
@@ -129,7 +132,7 @@ test("an invalid interval makes ok false, is dropped, the rest stays", () => {
 
 test("dryRun writes no properties, on success or failure", () => {
   for (const response of [{ code: 200, body: busyBody() }, { code: 502, body: { ok: false } }]) {
-    const env = load({ config: CONFIG, properties: PROPS, responses: [response] })
+    const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [response] })
     env.context.fetchICloudBusyIntervals(START, END, { dryRun: true })
     assert.deepEqual(env.properties.writes, [])
   }
@@ -153,7 +156,7 @@ test("not configured → ok false without any fetch", () => {
 })
 
 test("logs one summary line and never the token", () => {
-  const env = load({ config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
   env.context.fetchICloudBusyIntervals(START, END)
   const text = env.logs.map((l) => l[1]).join("\n")
   assert.equal(env.logs.length, 1)
@@ -283,5 +286,52 @@ test("node --check passes on every scripts/*.gs (copied to .js in a temp folder)
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+// --- horizon ----------------------------------------------------------------------------------------------------
+
+const urlRange = (url) => {
+  const q = new URL(url).searchParams
+  return [q.get("start"), q.get("end")]
+}
+
+test("horizon: ICLOUD_DAYS_AHEAD sets the end; coverage reports the range read", () => {
+  const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_DAYS_AHEAD: 7 }, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+  const result = env.context.fetchICloudBusyIntervals(START, END)
+  assert.deepEqual(urlRange(env.fetches[0].url), ["2026-11-16T00:00:00.000Z", "2026-11-25T00:00:00.000Z"])
+  assert.deepEqual({ ...result.coverage }, { start: "2026-11-16T00:00:00.000Z", end: "2026-11-25T00:00:00.000Z" })
+})
+
+test("horizon: the same range all day long, so the Worker cache can hit", () => {
+  const ranges = [Date.parse("2026-11-17T00:00:01Z"), Date.parse("2026-11-17T23:59:59Z")].map((now) => {
+    const env = load({ now, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+    env.context.fetchICloudBusyIntervals(START, END)
+    return urlRange(env.fetches[0].url)
+  })
+  assert.deepEqual(ranges[0], ranges[1])
+})
+
+test("horizon: a narrower requested window is kept as is", () => {
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+  env.context.fetchICloudBusyIntervals(new Date(NOW), new Date(NOW + 3 * 86400000))
+  assert.deepEqual(urlRange(env.fetches[0].url), ["2026-11-17T10:00:00.000Z", "2026-11-20T10:00:00.000Z"])
+})
+
+test("horizon: a window entirely outside it → ok false, no fetch", () => {
+  const env = load({ now: NOW, config: CONFIG, properties: PROPS })
+  const result = env.context.fetchICloudBusyIntervals(new Date("2027-03-01T00:00:00Z"), new Date("2027-04-01T00:00:00Z"))
+  assert.equal(result.ok, false)
+  assert.match(result.reason, /outside the iCloud horizon/)
+  assert.equal(env.fetches.length, 0)
+})
+
+test("horizon: invalid ICLOUD_DAYS_AHEAD → not configured", () => {
+  for (const value of [0, 400, 2.5, "x"]) {
+    const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_DAYS_AHEAD: value }, properties: PROPS })
+    const result = env.context.fetchICloudBusyIntervals(START, END)
+    assert.equal(result.ok, false)
+    assert.match(result.reason, /ICLOUD_DAYS_AHEAD/)
+    assert.equal(env.fetches.length, 0)
   }
 })

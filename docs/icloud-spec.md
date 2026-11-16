@@ -230,22 +230,26 @@ helper only).
 
 1. Read `ICLOUD_CALENDARS` (Config) and `ICLOUD_FEED_URL`, `ICLOUD_FEED_TOKEN` (Script Properties). Anything missing
    → log an error, return `{ ok: false, intervals: [] }`.
-2. `UrlFetchApp.fetch(url + '/busy?…', { method: 'get', headers: { Authorization: 'Bearer ' + token },
-   muteHttpExceptions: true, timeoutSeconds: 60 })`. Query: `start`/`end` from `toISOString()`, each calendar as a
+2. **Horizon** (added in phase 2, §17): the requested window is clipped to `[yesterday 00:00 UTC, that +
+   ICLOUD_DAYS_AHEAD + 2 days)` (default 30 days). The past and the far future don't matter for booking, and a
+   short window keeps the Worker near the Free plan's CPU limit. Whole UTC days keep the Worker's cache key stable
+   for a day. The clipped range is returned as `coverage`. A window entirely outside the horizon → `ok: false`.
+3. `UrlFetchApp.fetch(url + '/busy?…', { method: 'get', headers: { Authorization: 'Bearer ' + token },
+   muteHttpExceptions: true, timeoutSeconds: 60 })`. Query: `start`/`end` = the clipped range, each calendar as a
    `calendars` parameter, `tz` = `ICLOUD_FLOATING_TIMEZONE`.
-3. Result is `ok: true` only if: HTTP 200, valid JSON, top-level `ok: true`, every configured calendar present with
+4. Result is `ok: true` only if: HTTP 200, valid JSON, top-level `ok: true`, every configured calendar present with
    `ok: true`, and every interval valid (`end > start`, parseable, `allDay` matches the format). Otherwise
    `ok: false` and the valid intervals from `ok` calendars are still returned (creates are safe; MirrorBusy skips
    deletions).
-4. Map each interval to the MirrorBusy shape:
+5. Map each interval to the MirrorBusy shape:
    - `key` = `<calendar display name>|<id>` (readable, e.g. `Calendar A|<UID>|20261117T090000Z`). Not hashed here:
      MirrorBusy HMACs it.
    - timed → `start: { dateTime: '<UTC ISO>' }`, `end: { dateTime: '<UTC ISO>' }` (context7: Calendar API accepts
      `dateTime` from `toISOString()` without `timeZone`);
    - all-day → `start: { date: 'YYYY-MM-DD' }`, `end: { date: 'YYYY-MM-DD' }`.
-5. Unless `dryRun`: on `ok` write `ICLOUD_LAST_VERSION` and `ICLOUD_LAST_OK_AT`; on failure write
+6. Unless `dryRun`: on `ok` write `ICLOUD_LAST_VERSION` and `ICLOUD_LAST_OK_AT`; on failure write
    `ICLOUD_LAST_FAILURE_AT`.
-6. Log one summary line every run: `iCloud: ok | FAILED (reason); Calendar A: 12, Calendar B: failed (query_failed)`.
+7. Log one summary line every run: `iCloud: ok | FAILED (reason); Calendar A: 12, Calendar B: failed (query_failed)`.
    Calendar names appear only in this owner-only log. No keys, UIDs or times in routine logs.
 
 It never throws to MirrorBusy: all errors become `ok: false` (MirrorBusy also treats a throw as `ok: false`).
@@ -304,6 +308,7 @@ The proxy-side debug helper (`debugProxyDay`) belongs to MirrorBusy.
 |---|---|---|
 | `ICLOUD_CALENDARS` | `["Calendar A", "Calendar B"]` | iCloud display names to read |
 | `ICLOUD_FLOATING_TIMEZONE` | `"Europe/Berlin"` | zone for floating times |
+| `ICLOUD_DAYS_AHEAD` | `30` | days ahead to read, 1–366 (phase 2) |
 | `MIRROR_EXTRA_PROVIDERS` | `["fetchICloudBusyIntervals"]` | MirrorBusy's key; enables iCloud in the proxy |
 
 Rule for docs: never add the proxy's primary calendar to `CALENDARS_TO_MERGE`, or Busy events loop back.
@@ -345,8 +350,15 @@ Script Property (during the gap reads fail, so nothing is deleted).
 Registration: `MIRROR_EXTRA_PROVIDERS = ["fetchICloudBusyIntervals"]`. MirrorBusy calls each named global function
 as `fn(startTime, endTime)` with its own sync window.
 
-Return value: `{ ok: boolean, intervals: [ { key, start, end, allDay } ] }`, where `start`/`end` are
-`{ dateTime }` or `{ date }`.
+Return value: `{ ok: boolean, intervals: [ { key, start, end, allDay } ], coverage: { start, end } | null }`,
+where `start`/`end` are `{ dateTime }` or `{ date }`. `coverage` (ISO instants, added in phase 2) is the part of
+the requested window the provider actually read; outside it the provider returns nothing. Extra fields (`reason`,
+`calendars`, `cache`, `version`) are for logs and `debugICloud`.
+
+Coverage and deletions: if MirrorBusy deletes a provider's proxy events only inside that provider's `coverage`,
+nothing outside the horizon is touched. If it ignores `coverage`, iCloud Busy events that have passed get deleted
+on the next run (harmless for booking), and nothing beyond the horizon exists to delete, since the horizon only
+moves forward. Either is safe. Deletions must still be scoped to the provider's own keys.
 
 What MirrorBusy guarantees (Session A's side, restated so both sides test the same thing):
 
@@ -487,7 +499,7 @@ are pinned exactly in `package.json`.
 
 1. **Apple:** account.apple.com → Sign-In and Security → App-Specific Passwords → create one labelled for this Worker.
 2. **Token:** `openssl rand -base64 32`; keep it in the password manager.
-3. **Cloudflare:** Workers Paid plan (see §17), turn on 2FA. In `worker/`: `npm install`, `npx wrangler login`, `npx wrangler deploy`, then
+3. **Cloudflare:** Free plan first (see §17), turn on 2FA. In `worker/`: `npm install`, `npx wrangler login`, `npx wrangler deploy`, then
    `npx wrangler secret put ICLOUD_APPLE_ID`, `… ICLOUD_APP_PASSWORD`, `… FEED_TOKEN` (each put publishes a new
    version; until all three exist the Worker answers `not_configured`). Note the Worker URL.
 4. **Check the Worker** with `curl` (§11): `/version` returns `ok: true` for the chosen calendars; `/busy` for a week
@@ -510,19 +522,32 @@ are pinned exactly in `package.json`.
 
 ## 16. Open questions for the owner
 
-1. **Cloudflare plan.** Free gives 10 ms CPU per request. *Answered by the phase 2 benchmark (§17): a year of events
-   needs ~55 ms warm and ~200 ms cold even after optimization, so Workers Paid is needed.*
+1. **Cloudflare plan.** Free gives 10 ms CPU per request. *Decided after the phase 2 benchmark (§17): read only
+   today + 30 days and start on Free; watch CPU time in the dashboard after a day; Workers Paid if cold-start
+   failures are frequent.*
 2. **Commit the tests** in `worker/test/` and `tests/apps-script/` (proposed: yes, they contain only synthetic data).
 3. **Alarm by thrown error** after 24 h without a successful iCloud read, giving Google's failure email (proposed: yes).
 
 ## 17. Phase 2: what changed during the build
 
-1. **CPU benchmark → Workers Paid.** `worker/test/bench.mjs` runs the real handler (XML parsing and expansion) on a
-   synthetic year: 452 objects, 777 intervals in a 396-day window, including a daily series running for six years
-   and a weekly series with 20 moves and two EXDATEs. On a recent Mac (Node 24, the same V8 family as workerd): first
-   call 858 ms → **211 ms** after optimization, warm median 545 ms → **55 ms**. Free's 10 ms is out of reach, so
-   the owner's setup uses Workers Paid. A local `wrangler dev` (workerd) smoke test against the mock matched it
-   (about 50 ms for the full year). The optimizations:
+1. **CPU benchmark → horizon + Free.** `worker/test/bench.mjs [days]` runs the real handler (XML parsing and
+   expansion) on a synthetic calendar: about one event a day, two daily series running for years, two weekly series
+   with 20 moves and two EXDATEs each. Like iCloud's time-range filter, only objects that can overlap the window are
+   returned. On a recent Mac (Node 24, the same V8 family as workerd):
+
+   | Window | Warm median | Cold (fresh process) |
+   |---|---|---|
+   | first build, 396 days, no time-range filtering in the mock | 545 ms | 858 ms |
+   | 366 days ahead, after optimization | ~38 ms | ~190 ms |
+   | **30 days ahead (default)** | **~7–8 ms** | **~100 ms** |
+   | 7 days ahead | ~5 ms | ~95 ms |
+
+   `/version`: ~2 ms warm, ~45 ms cold. A warm Worker fits Free's 10 ms at 30 days; a cold start doesn't, whatever
+   the window, because it is mostly one-off compilation of tsdav/xml-js/ical.js code. How often Cloudflare cold
+   starts for one request every 5 minutes only shows in production, so the owner starts on Free, checks CPU time
+   after a day, and moves to Workers Paid if failures are frequent (each failure is safe: nothing is deleted and
+   the next check retries). A local `wrangler dev` (workerd) smoke test against the mock behaved like Node. The
+   optimizations:
    - **Shared VTIMEZONEs.** Every iCloud object repeats the same VTIMEZONE, and ical.js expands its DST rules from
      1970 the first time each copy is used. One hydrated zone per distinct VTIMEZONE text is now shared across
      objects (via the root component's `_timezoneCache`; ical.js is pinned to 2.2.1, and the tests would catch a
@@ -531,6 +556,14 @@ are pinned exactly in `package.json`.
      than BYDAY, DTSTART is moved forward by whole periods to just before the window. A test proves the output is
      identical to full iteration (interval, WKST, BYDAY, UNTIL, DST, EXDATE, overrides, THISANDFUTURE).
    - **No details lookup** for occurrences that end before the window (cheap wall-clock pre-check).
+   - **Fast VTIMEZONE offsets.** ical.js's `Timezone.utcOffset()` deep-clones change records on every call, and
+     ical.js calls it constantly (`toUnixTime`, `compare`, `convertToZone`, inside the iterator). The zones this
+     module hydrates get a `utcOffset` that binary-searches a table of UTC transitions built once from the changes
+     ical.js expands. A test compares it with ical.js's own `utcOffset` at ~80,000 local times from 2015 to 2030;
+     DST edges follow RFC 5545.
+   - **Overrides and plain occurrences without per-occurrence zone work:** override recurrence ids are kept as a
+     set of instants, and for series without THISANDFUTURE overrides an occurrence is start + the series'
+     duration (what `getOccurrenceDetails` does, minus its per-call cost).
 2. **RDATE without RRULE:** ical.js does not yield DTSTART as the first instance; the Worker adds it (RFC 5545:
    DTSTART is always the first instance unless excluded).
 3. **Calendar listing** uses `propfind` instead of `fetchCalendars` (§4) to save one subrequest per calendar.
@@ -542,7 +575,8 @@ are pinned exactly in `package.json`.
 8. **Duplicate display names:** if several iCloud calendars share a requested name, all are read (union) and all
    their ctags go into the version, so nothing is silently dropped.
 9. **Versions:** tsdav 2.5.0, ical.js 2.2.1, wrangler 4.156.2 (at least two weeks old at build time), pinned exactly.
-10. **Tests:** `npm test` at the repo root runs `tests/apps-script` (25 tests, including `node --check` on every
-    `.gs`) and `worker/test` (52 tests). No network: the CalDAV tests use an in-memory iCloud mock on `.invalid`
+10. **Tests:** `npm test` at the repo root runs `tests/apps-script` (30 tests, including `node --check` on every
+    `.gs`) and `worker/test` (53 tests). No network: the CalDAV tests use an in-memory iCloud mock on `.invalid`
     hosts.
-
+11. **Horizon** in `fetchICloudBusyIntervals` (§7.1) and `coverage` in the provider result (§9), from the owner's
+    decision to stay on Free.

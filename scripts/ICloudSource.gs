@@ -4,7 +4,7 @@
 // checkICloudAndSync()                          5-minute trigger: runs SyncCalendarsIntoOne when iCloud changed.
 // debugICloud(days)                             run by hand: prints status and intervals, writes nothing.
 //
-// Config.gs:          ICLOUD_CALENDARS, ICLOUD_FLOATING_TIMEZONE, MIRROR_EXTRA_PROVIDERS
+// Config.gs:          ICLOUD_CALENDARS, ICLOUD_FLOATING_TIMEZONE, ICLOUD_DAYS_AHEAD, MIRROR_EXTRA_PROVIDERS
 // Script Properties:  ICLOUD_FEED_URL, ICLOUD_FEED_TOKEN (set by the owner)
 //                     ICLOUD_LAST_VERSION, ICLOUD_LAST_OK_AT, ICLOUD_LAST_FAILURE_AT, ICLOUD_LAST_RUN_AT (set here)
 //
@@ -25,16 +25,25 @@ const ICLOUD_MAX_CALENDARS = 10
 const ICLOUD_DAILY_MS = 24 * 60 * 60 * 1000
 const ICLOUD_BACKOFF_MS = 15 * 60 * 1000
 const ICLOUD_ALARM_MS = 24 * 60 * 60 * 1000
+const ICLOUD_DAY_MS = 24 * 60 * 60 * 1000
+const ICLOUD_DEFAULT_DAYS_AHEAD = 30
+const ICLOUD_MAX_DAYS_AHEAD = 366
 
 /**
  * MirrorBusy provider. Never throws: every problem becomes ok: false (MirrorBusy then skips all deletions).
  * Intervals from calendars that were read fine are returned even when ok is false (creating is safe).
  *
+ * Horizon: only [yesterday 00:00 UTC, that + ICLOUD_DAYS_AHEAD + 2 days) is read, clipped to the requested window.
+ * The past and the far future don't matter for booking, and a short window keeps the Worker within the Workers
+ * Free plan's 10 ms of CPU. Whole UTC days keep the Worker's cache key stable for a day. `coverage` says which
+ * part of the requested window the result covers; outside it the provider returns nothing.
+ *
  * @param {Date} startTime
  * @param {Date} endTime
  * @param {{dryRun: boolean}=} options  dryRun: write no properties (debugICloud only)
  * @return {{ok: boolean, intervals: Array<{key: string, start: Object, end: Object, allDay: boolean}>,
- *           reason: string, calendars: Array, cache: string, version: ?string}}
+ *           coverage: ?{start: string, end: string}, reason: string, calendars: Array, cache: string,
+ *           version: ?string}}
  */
 function fetchICloudBusyIntervals(startTime, endTime, options) {
   const dryRun = !!(options && options.dryRun)
@@ -42,14 +51,14 @@ function fetchICloudBusyIntervals(startTime, endTime, options) {
   try {
     result = icloudReadBusy_(startTime, endTime)
   } catch (e) {
-    result = { ok: false, reason: "exception: " + (e && e.message), intervals: [], calendars: [], cache: "off", version: null }
+    result = { ok: false, reason: "exception: " + (e && e.message), intervals: [], coverage: null, calendars: [], cache: "off", version: null }
   }
 
   console.log(icloudSummaryLine_(result))
 
   if (!dryRun) {
     const props = PropertiesService.getScriptProperties()
-    const nowIso = new Date().toISOString()
+    const nowIso = new Date(icloudNow_()).toISOString()
     if (result.ok) {
       props.setProperties({ [ICLOUD_PROP.LAST_VERSION]: result.version, [ICLOUD_PROP.LAST_OK_AT]: nowIso })
     } else {
@@ -78,7 +87,7 @@ function checkICloudAndSync() {
   }
 
   const props = PropertiesService.getScriptProperties()
-  const now = Date.now()
+  const now = icloudNow_()
   const lastRun = Math.max(icloudTime_(props, ICLOUD_PROP.LAST_RUN_AT), icloudTime_(props, ICLOUD_PROP.LAST_OK_AT))
   const lastFailure = icloudTime_(props, ICLOUD_PROP.LAST_FAILURE_AT)
 
@@ -104,7 +113,7 @@ function checkICloudAndSync() {
     SyncCalendarsIntoOne()
   }
 
-  icloudHealthCheck_(props, Date.now())
+  icloudHealthCheck_(props, icloudNow_())
 }
 
 /**
@@ -133,9 +142,10 @@ function debugICloud(days) {
     (v.version && v.version === props.getProperty(ICLOUD_PROP.LAST_VERSION) ? ", same as last sync" : ""))
   for (const c of v.calendars || []) console.log("  " + c.name + ": " + (c.ok ? "ok" : c.error))
 
-  const now = new Date()
-  const result = fetchICloudBusyIntervals(now, new Date(now.getTime() + span * 24 * 60 * 60 * 1000), { dryRun: true })
-  console.log("iCloud debug: cache " + result.cache + ", " + result.intervals.length + " intervals in the next " + span + " days")
+  const now = new Date(icloudNow_())
+  const result = fetchICloudBusyIntervals(now, new Date(now.getTime() + span * ICLOUD_DAY_MS), { dryRun: true })
+  console.log("iCloud debug: cache " + result.cache + ", " + result.intervals.length + " intervals in the next " + span +
+    " days" + (span > cfg.daysAhead ? " (but only " + cfg.daysAhead + " days ahead are read: ICLOUD_DAYS_AHEAD)" : ""))
 
   const tz = cfg.tz !== "UTC" ? cfg.tz : Session.getScriptTimeZone()
   const sorted = result.intervals.slice().sort(function (a, b) {
@@ -149,18 +159,26 @@ function debugICloud(days) {
 
 function icloudReadBusy_(startTime, endTime) {
   const cfg = icloudConfig_()
-  const empty = { ok: false, intervals: [], calendars: [], cache: "off", version: null }
+  const empty = { ok: false, intervals: [], coverage: null, calendars: [], cache: "off", version: null }
   if (cfg.error) return Object.assign(empty, { reason: "not configured (" + cfg.error + ")" })
   if (!icloudIsDate_(startTime) || !icloudIsDate_(endTime) || !(endTime.getTime() > startTime.getTime())) {
     return Object.assign(empty, { reason: "invalid window" })
   }
 
+  const horizon = icloudHorizon_(cfg.daysAhead, icloudNow_())
+  const windowStart = new Date(Math.max(startTime.getTime(), horizon.start))
+  const windowEnd = new Date(Math.min(endTime.getTime(), horizon.end))
+  if (!(windowEnd.getTime() > windowStart.getTime())) {
+    return Object.assign(empty, { reason: "requested window is outside the iCloud horizon" })
+  }
+  const coverage = { start: windowStart.toISOString(), end: windowEnd.toISOString() }
+
   const query = icloudCalendarQuery_(cfg.calendars) +
-    "&start=" + encodeURIComponent(startTime.toISOString()) +
-    "&end=" + encodeURIComponent(endTime.toISOString()) +
+    "&start=" + encodeURIComponent(coverage.start) +
+    "&end=" + encodeURIComponent(coverage.end) +
     "&tz=" + encodeURIComponent(cfg.tz)
   const response = icloudGet_(cfg, "/busy?" + query, ICLOUD_BUSY_TIMEOUT_SECONDS)
-  if (response.error) return Object.assign(empty, { reason: response.error })
+  if (response.error) return Object.assign(empty, { reason: response.error, coverage: coverage })
 
   const body = response.body
   const reasons = []
@@ -198,6 +216,7 @@ function icloudReadBusy_(startTime, endTime) {
     ok: reasons.length === 0,
     reason: reasons.join(", "),
     intervals: intervals,
+    coverage: coverage,
     calendars: calendars,
     cache: typeof body.cache === "string" ? body.cache : "off",
     version: version,
@@ -291,7 +310,27 @@ function icloudConfig_() {
   if (!token) return { error: ICLOUD_PROP.FEED_TOKEN + " is not set" }
 
   const tz = typeof ICLOUD_FLOATING_TIMEZONE !== "undefined" && ICLOUD_FLOATING_TIMEZONE ? String(ICLOUD_FLOATING_TIMEZONE) : "UTC"
-  return { calendars: calendars, url: url, token: token, tz: tz }
+
+  let daysAhead = ICLOUD_DEFAULT_DAYS_AHEAD
+  if (typeof ICLOUD_DAYS_AHEAD !== "undefined" && ICLOUD_DAYS_AHEAD !== null && ICLOUD_DAYS_AHEAD !== "") {
+    daysAhead = Number(ICLOUD_DAYS_AHEAD)
+    if (!(daysAhead >= 1 && daysAhead <= ICLOUD_MAX_DAYS_AHEAD && Math.floor(daysAhead) === daysAhead)) {
+      return { error: "ICLOUD_DAYS_AHEAD must be a whole number from 1 to " + ICLOUD_MAX_DAYS_AHEAD }
+    }
+  }
+  return { calendars: calendars, url: url, token: token, tz: tz, daysAhead: daysAhead }
+}
+
+// [yesterday 00:00 UTC, + daysAhead + 2 days): covers all of "today" in any time zone and at least daysAhead
+// days ahead, and stays the same all day long, so the Worker's cache key does too.
+function icloudHorizon_(daysAhead, nowMs) {
+  const start = Math.floor(nowMs / ICLOUD_DAY_MS) * ICLOUD_DAY_MS - ICLOUD_DAY_MS
+  return { start: start, end: start + (daysAhead + 2) * ICLOUD_DAY_MS }
+}
+
+// The clock, in one place so tests can set it.
+function icloudNow_() {
+  return Date.now()
 }
 
 function icloudProviderEnabled_() {

@@ -119,7 +119,7 @@ function shareTimezones(vcalendar) {
     const key = vtimezone.toString()
     let zone = zoneCache.get(key)
     if (!zone) {
-      zone = new ICAL.Timezone({ component: vtimezone, tzid: String(tzid) })
+      zone = installFastOffset(new ICAL.Timezone({ component: vtimezone, tzid: String(tzid) }))
       if (zoneCache.size >= ZONE_CACHE_LIMIT) zoneCache.clear()
       zoneCache.set(key, zone)
     }
@@ -150,18 +150,40 @@ function expandSeries(uid, event, ctx, out) {
   // Occurrences whose recurrence id is this early end before the window: no need for the costly details lookup.
   const skipBeforeMs = ctx.windowStart - maxLengthMs - slackMs
 
-  const emit = (time) => {
-    // A direct override replaces this occurrence; the override loop handles it.
-    if (isDirectException(event, time)) return
-    const details = event.getOccurrenceDetails(time)
-    const itemComp = details.item ? details.item.component : masterComp
-    const occId = allDay ? dateBasic(time) : utcBasic(toMs(time, startTzid, ctx))
-    pushOccurrence(out, ctx, uid, occId, itemComp, details.startDate, details.endDate, startTzid)
+  // Recurrence ids of all overrides, as instants (or dates): an override replaces its occurrence, and the override
+  // loop handles it. Cheaper than ical.js's string lookups with a zone conversion per occurrence.
+  const overridden = new Set()
+  for (const id of Object.keys(event.exceptions)) {
+    const ex = event.exceptions[id]
+    overridden.add(ex.recurrenceId.isDate ? dateIso(ex.recurrenceId)
+      : toMs(ex.recurrenceId, propTzid(ex.component, "recurrence-id"), ctx))
+  }
+  // Without RANGE=THISANDFUTURE overrides every occurrence is DTSTART-shaped: start + the series' duration
+  // (what ical.js's getOccurrenceDetails does in that case, minus its per-call duration and zone work).
+  const simple = event.rangeExceptions.length === 0
+  const duration = simple ? event.duration : null
+
+  const emit = (time, recurrenceMs) => {
+    if (overridden.has(allDay ? dateIso(time) : recurrenceMs)) return
+    let start = time
+    let end
+    let itemComp = masterComp
+    if (simple) {
+      end = time.clone()
+      end.addDuration(duration)
+    } else {
+      const details = event.getOccurrenceDetails(time)
+      if (details.item) itemComp = details.item.component
+      start = details.startDate
+      end = details.endDate
+    }
+    const occId = allDay ? dateBasic(time) : utcBasic(recurrenceMs)
+    pushOccurrence(out, ctx, uid, occId, itemComp, start, end, startTzid)
   }
 
   // RFC 5545: DTSTART is always the first instance. ical.js skips it when the series has RDATE but no RRULE.
   if (!masterComp.hasProperty("rrule") && !isExcluded(masterComp, event.startDate, startTzid, ctx)) {
-    emit(event.startDate)
+    emit(event.startDate, toMs(event.startDate, startTzid, ctx))
   }
 
   // ical.js cannot start mid-series in general (COUNT and some BY rules need every occurrence counted), so iterate
@@ -177,7 +199,7 @@ function expandSeries(uid, event, ctx, out) {
     const recurrenceMs = toMs(next, startTzid, ctx)
     if (recurrenceMs >= stopMs) break
     if (recurrenceMs < skipBeforeMs) continue
-    emit(next) // a DTSTART emitted above comes again here at most once; the id de-duplication drops it
+    emit(next, recurrenceMs) // a DTSTART emitted above comes again here at most once; id de-duplication drops it
   }
 }
 
@@ -228,11 +250,6 @@ function isExcluded(comp, time, tzid, ctx) {
     }
   }
   return false
-}
-
-function isDirectException(event, time) {
-  if (time.toString() in event.exceptions) return true
-  return time.convertToZone(ICAL.Timezone.utcTimezone).toString() in event.exceptions
 }
 
 // Applies the skip rules and the window test, then appends one interval.
@@ -299,6 +316,71 @@ function toMs(time, tzid, ctx) {
   const zoneName = tzid || ctx.tz
   if (!isValidTimeZone(zoneName)) throw new ExpandError("unknown TZID")
   return wallClockToUtc(time.year, time.month, time.day, time.hour, time.minute, time.second, zoneName)
+}
+
+// Fast VTIMEZONE offsets. ical.js's Timezone.utcOffset() deep-clones change records on every call, and ical.js calls
+// it constantly (every toUnixTime, compare and convertToZone, also inside the recurrence iterator): after the other
+// optimizations it was most of the CPU. installFastOffset() replaces utcOffset on the zones this module hydrates
+// (and only those) with a binary search in a table of UTC transition instants, built once per zone from the DST
+// changes ical.js itself expands. Ambiguous and skipped local times follow RFC 5545 §3.3.5, as on the Intl path.
+// Relies on ical.js 2.2.1's Timezone.changes (pinned; a test compares the result with ical.js's own utcOffset).
+const transitionTables = new WeakMap()
+
+export function installFastOffset(zone) {
+  const original = zone.utcOffset.bind(zone)
+  zone.utcOffset = function (tt) {
+    if (!tt || typeof tt.year !== "number") return original(tt)
+    const table = transitionTable(zone, tt.year, original)
+    if (!table) return original(tt)
+    const wall = Date.UTC(tt.year, tt.month - 1, tt.day, tt.hour, tt.minute, tt.second)
+    return (wall - resolveWallClock(wall, (ms) => tableOffset(table, ms))) / 1000
+  }
+  return zone
+}
+
+function transitionTable(zone, year, originalUtcOffset) {
+  let table = transitionTables.get(zone)
+  if (table && table.untilYear >= year + 1) return table
+  // Make ical.js expand the zone's changes through year + 2 (its utcOffset does that as a side effect).
+  originalUtcOffset({ year: year + 2, month: 1, day: 1, hour: 0, minute: 0, second: 0 })
+  const changes = zone.changes
+  if (!Array.isArray(changes) || !changes.length) return null
+  const utc = []
+  const offsets = []
+  for (const c of changes) {
+    // ical.js stores each change's moment already converted to UTC (it subtracts TZOFFSETFROM when expanding).
+    utc.push(Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second))
+    offsets.push(c.utcOffset * 1000)
+  }
+  table = { untilYear: year + 2, utc, offsets, initial: changes[0].prevUtcOffset * 1000 }
+  transitionTables.set(zone, table)
+  return table
+}
+
+function tableOffset(table, ms) {
+  let lo = 0
+  let hi = table.utc.length - 1
+  if (ms < table.utc[0]) return table.initial
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (table.utc[mid] <= ms) lo = mid
+    else hi = mid - 1
+  }
+  return table.offsets[lo]
+}
+
+// wall: local wall-clock fields encoded as if UTC. offsetAt(ms): the zone's offset at a UTC instant.
+function resolveWallClock(wall, offsetAt) {
+  const before = offsetAt(wall - DAY_MS)
+  const after = offsetAt(wall + DAY_MS)
+  const a = wall - before
+  const b = wall - after
+  const aOk = offsetAt(a) === before
+  const bOk = offsetAt(b) === after
+  if (aOk && bOk) return Math.min(a, b) // repeated hour: first occurrence
+  if (aOk) return a
+  if (bOk) return b
+  return a // skipped hour: offset from before the jump
 }
 
 const formatterCache = new Map()

@@ -52,6 +52,7 @@ function formatDate(date, timeZone, pattern) {
  * @param {object} [opts.config]      Config.gs constants, e.g. { ICLOUD_CALENDARS: [...] }
  * @param {object} [opts.properties]  initial Script Properties
  * @param {Array}  [opts.responses]   queue: { code, body } or an Error to throw
+ * @param {number} [opts.now]         fixed clock (ms) for ICloudSource's icloudNow_()
  */
 function load(opts = {}) {
   const properties = new MockProperties(opts.properties)
@@ -85,6 +86,7 @@ function load(opts = {}) {
   const configLines = Object.entries(opts.config || {}).map(([k, v]) => `const ${k} = ${JSON.stringify(v)}`)
   vm.runInContext(configLines.join("\n"), context, { filename: "Config.gs" })
   vm.runInContext(fs.readFileSync(path.join(SCRIPTS, "ICloudSource.gs"), "utf8"), context, { filename: "ICloudSource.gs" })
+  if (typeof opts.now === "number") context.icloudNow_ = () => opts.now
 
   return { context, properties, fetches, logs, responses, syncCalls }
 }

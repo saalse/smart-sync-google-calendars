@@ -21,6 +21,7 @@ later need MirrorBusy merged and working for your Google calendars.
 | Script Property | `ICLOUD_FEED_TOKEN` | same value as `FEED_TOKEN` |
 | `Config.gs` | `ICLOUD_CALENDARS` | iCloud calendar names, exactly as shown in Apple Calendar |
 | `Config.gs` | `ICLOUD_FLOATING_TIMEZONE` | IANA zone for events without a time zone, e.g. `Europe/Berlin` |
+| `Config.gs` | `ICLOUD_DAYS_AHEAD` | how many days ahead to read (default 30; the past is never read) |
 | `Config.gs` | `MIRROR_EXTRA_PROVIDERS` | add `"fetchICloudBusyIntervals"` (step 9) |
 
 The code fills in four more Script Properties itself: `ICLOUD_LAST_VERSION`, `ICLOUD_LAST_OK_AT`,
@@ -39,9 +40,11 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
    openssl rand -base64 32
    ```
 
-3. **Cloudflare Worker.** Turn on 2FA for the Cloudflare account. Use the **Workers Paid** plan: the CPU
-   benchmark (`npm run bench` in `worker/`) shows that `/busy` for a year of events needs about 50–200 ms of CPU,
-   and the Free plan allows 10 ms per request. Then, in `worker/`:
+3. **Cloudflare Worker.** Turn on 2FA for the Cloudflare account. Start on the **Free** plan (10 ms of CPU per
+   request): with the default 30-day horizon, a warm Worker needs about 7–8 ms per `/busy` in the benchmark
+   (`npm run bench` in `worker/`). A request that lands on a freshly started Worker can need much more (about
+   100 ms in the benchmark, mostly one-off compilation of the library code), so check step 10a after a day. Then,
+   in `worker/`:
    ```bash
    npm install
    ```
@@ -97,6 +100,12 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
 10. **Trigger.** Apps Script → Triggers → Add trigger: function `checkICloudAndSync`, deployment Head, event
     source Time-driven, Minutes timer, Every 5 minutes. Set failure notifications to daily.
 
+10a. **After a day, check the Worker's CPU.** Cloudflare dashboard → Workers & Pages → `icloud-busy-feed` →
+    Metrics: look at CPU time and at errors for exceeded resource limits. In the Apps Script executions, look for
+    `iCloud: FAILED (http 503, not JSON)` or `/version failed`. Occasional failures are harmless: the next
+    check retries and nothing is deleted meanwhile. If they are frequent, shorten `ICLOUD_DAYS_AHEAD`, or switch
+    the Worker to **Workers Paid** (the code stays the same).
+
 11. **Live test.** Create a test event in a chosen iCloud calendar. Within about 5 minutes a `Busy` event with no
     title should appear in the proxy. Move it, and the Busy event moves. Delete it, and the Busy event
     disappears.
@@ -113,6 +122,9 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
 
 - **Every 5 minutes** `checkICloudAndSync` asks the Worker's cheap `/version`. If any chosen calendar changed, it
   runs `SyncCalendarsIntoOne`. It also runs a full sync at least once a day.
+- **Horizon:** only the next `ICLOUD_DAYS_AHEAD` days (plus today) are read. An event that is further away
+  appears once it enters the horizon, at the latest with the next daily sync. iCloud Busy events that have
+  passed may be removed from the proxy; booking doesn't need them.
 - **When iCloud can't be read** (wrong token, Apple password revoked, iCloud down, a renamed calendar, an event
   the Worker can't parse), the read counts as failed. MirrorBusy then **deletes nothing** from the proxy, not even
   events from your Google calendars, while still adding new ones. The next attempt waits 15 minutes.
@@ -130,5 +142,7 @@ Never put the Apple ID, the passwords, the token or the Worker URL in the repo.
 | `iCloud: FAILED (http 500 not_configured)` | a Worker secret is missing | step 3 |
 | `…: failed (not_found)` | no iCloud calendar has that exact name | fix `ICLOUD_CALENDARS` |
 | `…: failed (parse_failed)` | the Worker could not read an event in that calendar | `npx wrangler tail`, then open an issue with the calendar app and event type (never the event itself) |
-| `iCloud: FAILED (http 503, not JSON)` | Cloudflare error page, e.g. CPU limit exceeded | Workers Paid plan (step 3) |
+| `iCloud: FAILED (http 503, not JSON)` | Cloudflare error page, e.g. CPU limit exceeded | if frequent: shorter `ICLOUD_DAYS_AHEAD` or Workers Paid (step 10a) |
+| `iCloud check: /version failed (http 503, not JSON)` | same, on the cheap check | same |
+| `requested window is outside the iCloud horizon` | the caller asked only for dates beyond `ICLOUD_DAYS_AHEAD` | nothing to fix |
 | `iCloud check: backing off …` | a read failed less than 15 minutes ago | wait, or fix the cause above |

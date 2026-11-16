@@ -89,15 +89,28 @@ Until all three exist, the Worker answers `500 not_configured`.
 
 ## Plan and CPU
 
-`npm run bench` replays a synthetic busy year (about 450 events, a daily series running for six years and a
-weekly series with moves and exclusions) through the real handler. On a recent Mac it takes about **55 ms CPU warm and
-200 ms cold**. The Workers **Free plan allows 10 ms of CPU per request**, so `/busy` for a real year of events
-does not fit in Free. Use **Workers Paid**. `/version`, which runs every 5 minutes, is cheap. When nothing has
-changed, the ctag-keyed cache answers `/busy` without parsing anything (if the cache works on your domain; the
-`cache` field in the response tells you).
+The Workers **Free plan allows 10 ms of CPU per request**. Apps Script asks only for today and the next
+`ICLOUD_DAYS_AHEAD` days (default 30), and iCloud returns only the events in that range.
 
-If a request does go over the limit, Cloudflare returns an error page. Apps Script treats that as a failed read
-and deletes nothing.
+`npm run bench [days]` replays a synthetic calendar (about one event a day, two daily series running for years,
+two weekly series with moves and exclusions) through the real handler. Results on a recent Mac:
+
+| Days ahead | Warm (median) | Cold (fresh process) |
+|---|---|---|
+| 7 | ~5 ms | ~95 ms |
+| 30 | ~7–8 ms | ~100 ms |
+| 60 | ~10–12 ms | ~115 ms |
+| 366 | ~38 ms | ~190 ms |
+
+A warm Worker fits in Free at 30 days. A freshly started one does not: most of the cold time is one-off
+compilation of the library code, whatever the window. `/version` is ~2 ms warm and ~45 ms cold. How often
+Cloudflare starts a fresh Worker for a request every 5 minutes only shows in production: check CPU time in the
+dashboard (Workers & Pages → the Worker → Metrics). When nothing has changed, the ctag-keyed cache answers
+`/busy` without parsing anything (if the cache works on your domain; the `cache` field in the response tells you).
+
+If a request goes over the limit, Cloudflare returns an error page. Apps Script treats that as a failed read: it
+deletes nothing and retries later. If that happens often, use a shorter horizon or **Workers Paid**; the code is
+the same.
 
 ## Logs
 

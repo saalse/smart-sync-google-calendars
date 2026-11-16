@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { expandCalendarObjects, wallClockToUtc, ExpandError } from "../src/expand.js"
+import ICAL from "ical.js"
+import { expandCalendarObjects, wallClockToUtc, installFastOffset, ExpandError } from "../src/expand.js"
 import { ics, ms, BERLIN_VTIMEZONE, CUSTOM_VTIMEZONE } from "./fixtures.js"
 
 const WINDOW = { windowStart: ms("2026-10-01T00:00:00Z"), windowEnd: ms("2026-12-01T00:00:00Z"), tz: "UTC" }
@@ -243,4 +244,26 @@ test("fast-forward gives exactly the same occurrences as full iteration", () => 
     assert.ok(full.length > 10)
     assert.deepEqual(fast, full)
   }
+})
+
+test("fast VTIMEZONE offsets match ical.js's own utcOffset", () => {
+  for (const [tzid, lines] of [["Europe/Berlin", BERLIN_VTIMEZONE], ["Custom/Plus3", CUSTOM_VTIMEZONE]]) {
+    const vtimezone = () => new ICAL.Component(ICAL.parse(ics([], lines))).getFirstSubcomponent("vtimezone")
+    const ref = new ICAL.Timezone({ component: vtimezone(), tzid })
+    const fast = installFastOffset(new ICAL.Timezone({ component: vtimezone(), tzid }))
+    let checked = 0
+    for (let day = Date.UTC(2015, 0, 1); day < Date.UTC(2031, 0, 1); day += 86400000) {
+      const d = new Date(day)
+      for (const hour of [0, 1, 4, 9, 12, 18, 23]) {
+        const tt = { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour, minute: 30, second: 0 }
+        assert.equal(fast.utcOffset(tt), ref.utcOffset(tt), tzid + " " + JSON.stringify(tt))
+        checked++
+      }
+    }
+    assert.ok(checked > 40000)
+  }
+  // DST edges follow RFC 5545: skipped 02:30 → pre-jump offset; repeated 02:30 → first occurrence (summer time).
+  const berlin = installFastOffset(new ICAL.Timezone({ component: new ICAL.Component(ICAL.parse(ics([], BERLIN_VTIMEZONE))).getFirstSubcomponent("vtimezone"), tzid: "Europe/Berlin" }))
+  assert.equal(berlin.utcOffset({ year: 2026, month: 3, day: 29, hour: 2, minute: 30, second: 0 }), 3600)
+  assert.equal(berlin.utcOffset({ year: 2026, month: 10, day: 25, hour: 2, minute: 30, second: 0 }), 7200)
 })

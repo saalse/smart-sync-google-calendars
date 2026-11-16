@@ -39,5 +39,9 @@ const ICLOUD_CALENDARS = [
 // Time zone for iCloud events that have no time zone of their own ("floating" times). IANA name.
 const ICLOUD_FLOATING_TIMEZONE = "Europe/Berlin"
 
+// How many days ahead iCloud busy time is read (1 to 366). The past is never read. Keep it short: booking pages
+// rarely look further, and a short window keeps the Worker within the Cloudflare Free plan's CPU limit.
+const ICLOUD_DAYS_AHEAD = 30
+
 // The Worker URL and token are NOT set here: they go in Script Properties (ICLOUD_FEED_URL, ICLOUD_FEED_TOKEN).
 // iCloud reaches the proxy only through MirrorBusy: add "fetchICloudBusyIntervals" to its MIRROR_EXTRA_PROVIDERS.
