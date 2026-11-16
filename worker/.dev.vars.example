@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `npx wrangler dev` (gitignored). Never commit real values.
+ICLOUD_APPLE_ID=
+ICLOUD_APP_PASSWORD=
+FEED_TOKEN=

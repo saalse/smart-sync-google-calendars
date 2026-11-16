@@ -1,0 +1,22 @@
+{
+  "name": "icloud-busy-feed",
+  "version": "1.0.0",
+  "description": "Read-only Cloudflare Worker that turns iCloud CalDAV calendars into busy intervals for Apps Script",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test \"test/*.test.js\"",
+    "bench": "node test/bench.mjs",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "ical.js": "2.2.1",
+    "tsdav": "2.5.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.2"
+  },
+  "license": "MIT"
+}

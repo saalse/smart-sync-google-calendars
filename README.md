@@ -102,6 +102,13 @@ For developers interested in how the smart sync works under the hood:
 
 - **Pagination Support**: Handles calendars with 2,500+ events by processing multiple pages of results from the Calendar API
 
+## iCloud → proxy calendar (optional)
+
+You can also show busy time from chosen **iCloud** calendars in a proxy Google calendar, as plain `Busy` events with
+no details. A small read-only Cloudflare Worker (`worker/`) reads iCloud over CalDAV and returns busy intervals only;
+`scripts/ICloudSource.gs` passes them on to MirrorBusy. A failed iCloud read never deletes anything. Setup:
+[`docs/icloud-setup.md`](./docs/icloud-setup.md). Design: [`docs/icloud-spec.md`](./docs/icloud-spec.md).
+
 ## Troubleshooting
 
 Having issues? See the detailed troubleshooting sections in the setup guides:

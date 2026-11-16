@@ -1,6 +1,7 @@
 # iCloud busy time → proxy calendar: specification
 
-Status: draft for the owner's review (phase 1). No code yet.
+Status: approved by the owner; phase 2 built (code in `worker/` and `scripts/ICloudSource.gs`). §17 lists what
+changed during the build.
 
 ## 1. Goal and scope
 
@@ -129,7 +130,9 @@ Per request (all network waits; none of this counts as Worker CPU time):
 1. **Login / discovery** (`createDAVClient`, `defaultAccountType: 'caldav'`): service discovery, then
    `DAV:current-user-principal` (RFC 5397), then `CALDAV:calendar-home-set` (RFC 4791 §6.2.1). About 3 requests,
    plus any redirect iCloud issues to its per-account host.
-2. **List calendars** (`fetchCalendars`): one `PROPFIND Depth: 1` on the calendar home. Each `DAVCalendar` carries
+2. **List calendars**: one `PROPFIND Depth: 1` on the calendar home with tsdav's `propfind` (not `fetchCalendars`,
+   which adds a `supported-report-set` PROPFIND for every calendar in the account). Calendars whose
+   `supported-calendar-component-set` excludes `VEVENT` (Reminders lists) are ignored. Each `DAVCalendar` carries
    `displayName`, `url` and `ctag` (`{http://calendarserver.org/ns/}getctag`, which changes whenever a resource in
    the calendar is added, changed or deleted — official calendarserver extension doc). `/version` stops here.
 3. **Query events** (`/busy` only), one `REPORT calendar-query` per selected calendar, `Depth: 1`, asking for
@@ -193,8 +196,9 @@ Per calendar object:
 `/busy` is called on every sync, including syncs started by Google calendar triggers, so it should be cheap when
 nothing changed. After discovery (step 2 in §4) the Worker has the current ctags, so:
 
-- cache key = synthetic GET URL `https://cache.invalid/busy/<sha256(version, start, end, tz, sorted calendars)>`;
-  it contains no token and no calendar names;
+- cache key = GET URL on the Worker's own origin, `<origin>/__cache/busy/<sha256(version, start, end, tz, sorted
+  calendars)>` (Cloudflare's documented pattern; the path is never served because every request runs the Worker,
+  which answers 401/404 for it); it contains no token and no calendar names;
 - hit → return the stored JSON with `"cache": "hit"`; miss → query, expand, store with
   `Cache-Control: max-age=3600`, return `"cache": "miss"`;
 - any iCloud change produces a new ctag, so a new key: a stale result can't be served;
@@ -252,6 +256,7 @@ Takes no lock itself; `SyncCalendarsIntoOne()` takes the script lock (LockServic
 
 ```
 if not configured → warn, return
+if "fetchICloudBusyIntervals" not in MIRROR_EXTRA_PROVIDERS → warn, return
 lastRun = max(ICLOUD_LAST_RUN_AT, ICLOUD_LAST_OK_AT)
 if now - lastRun ≥ 24 h            → reason "daily"
 else if ICLOUD_LAST_FAILURE_AT < 15 min ago → log "backing off", skip to health check
@@ -264,6 +269,8 @@ health check: if ICLOUD_LAST_FAILURE_AT > ICLOUD_LAST_OK_AT and (no ICLOUD_LAST_
      → throw Error("iCloud has not synced for over 24 h: …")
 ```
 
+- The provider check matters: without it nothing would ever write `ICLOUD_LAST_VERSION`, and every check would
+  run a full sync.
 - The daily rule needs no second trigger.
 - The 15-minute back-off keeps a broken `/busy` (for example the Worker hitting its CPU limit) from running a full
   sync every 5 minutes and eating the trigger runtime quota.
@@ -322,8 +329,9 @@ All values are far below the 9 KB per-value limit (context7).
 | `ICLOUD_APP_PASSWORD` | an app-specific password used only by this Worker |
 | `FEED_TOKEN` | random bearer token, at least 32 bytes (`openssl rand -base64 32`) |
 
-`wrangler.jsonc` lists them under `secrets.required` (documents them; for local dev only these keys load from
-`.dev.vars`, which is gitignored; a `.dev.vars.example` holds names only). No `vars` hold secrets (Cloudflare's own
+`wrangler.jsonc` names them in a comment, not under `secrets.required`: with that field the first `wrangler deploy`
+of a new Worker refuses to run unless the secrets come from a file on disk (`--secrets-file`; found in wrangler's
+source during the build). For local dev they go in `.dev.vars` (gitignored); `.dev.vars.example` holds names only. No `vars` hold secrets (Cloudflare's own
 caution). Optional var `CALDAV_SERVER_URL` (default `https://caldav.icloud.com`) exists only so tests can point at a
 mock.
 
@@ -381,7 +389,7 @@ has effect only after MirrorBusy is merged and `MIRROR_EXTRA_PROVIDERS` is set.
    ```
 4. **Worker logs**: `observability.enabled: true` in `wrangler.jsonc`; view in the Cloudflare dashboard or with
    `npx wrangler tail`. The Worker logs only path, status, per-calendar ok/error codes, counts, cache hit/miss and
-   duration. Never the Authorization header, credentials, ICS text, UIDs or interval times.
+   duration (`ms`; wall time spent waiting on iCloud, because the Workers clock does not advance during CPU work). Never the Authorization header, credentials, ICS text, UIDs or interval times.
 
 ## 12. Tests (phase 2; no network, no real accounts)
 
@@ -455,7 +463,7 @@ Apps Script (`tests/apps-script/`, `node:test` + `vm` with mocks of `UrlFetchApp
 
 ```
 worker/
-  wrangler.jsonc          name, main, compatibility_date, observability, secrets.required, workers_dev
+  wrangler.jsonc          name, main, compatibility_date, observability, workers_dev (secret names in a comment)
   package.json            exact versions: tsdav, ical.js; dev: wrangler
   .gitignore              node_modules/, .wrangler/, .dev.vars
   .dev.vars.example       secret names only
@@ -463,7 +471,7 @@ worker/
   src/index.js            router, auth, validation, cache, JSON responses, safe logging
   src/caldav.js           tsdav discovery, ctag version, calendar-query
   src/expand.js           ICS → intervals (recurrence, zones, all-day, skip rules)
-  test/*.test.js          node:test suites and synthetic fixtures
+  test/*.test.js          node:test suites, iCloud mock, synthetic fixtures; test/bench.mjs CPU benchmark
 scripts/ICloudSource.gs   fetchICloudBusyIntervals, checkICloudAndSync, debugICloud
 scripts/Config.gs.example + ICLOUD_CALENDARS, ICLOUD_FLOATING_TIMEZONE (MIRROR_EXTRA_PROVIDERS comes with MirrorBusy)
 tests/apps-script/*.test.js
@@ -479,7 +487,7 @@ are pinned exactly in `package.json`.
 
 1. **Apple:** account.apple.com → Sign-In and Security → App-Specific Passwords → create one labelled for this Worker.
 2. **Token:** `openssl rand -base64 32`; keep it in the password manager.
-3. **Cloudflare:** turn on 2FA. In `worker/`: `npm install`, `npx wrangler login`, `npx wrangler deploy`, then
+3. **Cloudflare:** Workers Paid plan (see §17), turn on 2FA. In `worker/`: `npm install`, `npx wrangler login`, `npx wrangler deploy`, then
    `npx wrangler secret put ICLOUD_APPLE_ID`, `… ICLOUD_APP_PASSWORD`, `… FEED_TOKEN` (each put publishes a new
    version; until all three exist the Worker answers `not_configured`). Note the Worker URL.
 4. **Check the Worker** with `curl` (§11): `/version` returns `ok: true` for the chosen calendars; `/busy` for a week
@@ -502,8 +510,39 @@ are pinned exactly in `package.json`.
 
 ## 16. Open questions for the owner
 
-1. **Cloudflare plan.** Free gives 10 ms CPU per request. Proposal: build for Free, run the CPU benchmark in phase 2,
-   and if the real `/busy` regularly exceeds it (visible in Worker logs), move to Workers Paid or add a
-   fast-forward for long daily/weekly series.
+1. **Cloudflare plan.** Free gives 10 ms CPU per request. *Answered by the phase 2 benchmark (§17): a year of events
+   needs ~55 ms warm and ~200 ms cold even after optimization, so Workers Paid is needed.*
 2. **Commit the tests** in `worker/test/` and `tests/apps-script/` (proposed: yes, they contain only synthetic data).
 3. **Alarm by thrown error** after 24 h without a successful iCloud read, giving Google's failure email (proposed: yes).
+
+## 17. Phase 2: what changed during the build
+
+1. **CPU benchmark → Workers Paid.** `worker/test/bench.mjs` runs the real handler (XML parsing and expansion) on a
+   synthetic year: 452 objects, 777 intervals in a 396-day window, including a daily series running for six years
+   and a weekly series with 20 moves and two EXDATEs. On a recent Mac (Node 24, the same V8 family as workerd): first
+   call 858 ms → **211 ms** after optimization, warm median 545 ms → **55 ms**. Free's 10 ms is out of reach, so
+   the owner's setup uses Workers Paid. A local `wrangler dev` (workerd) smoke test against the mock matched it
+   (about 50 ms for the full year). The optimizations:
+   - **Shared VTIMEZONEs.** Every iCloud object repeats the same VTIMEZONE, and ical.js expands its DST rules from
+     1970 the first time each copy is used. One hydrated zone per distinct VTIMEZONE text is now shared across
+     objects (via the root component's `_timezoneCache`; ical.js is pinned to 2.2.1, and the tests would catch a
+     change). Single events: 410 ms → 22 ms.
+   - **Fast-forward** for long series. With exactly one RRULE, FREQ=DAILY or WEEKLY, no COUNT and no BY rule other
+     than BYDAY, DTSTART is moved forward by whole periods to just before the window. A test proves the output is
+     identical to full iteration (interval, WKST, BYDAY, UNTIL, DST, EXDATE, overrides, THISANDFUTURE).
+   - **No details lookup** for occurrences that end before the window (cheap wall-clock pre-check).
+2. **RDATE without RRULE:** ical.js does not yield DTSTART as the first instance; the Worker adds it (RFC 5545:
+   DTSTART is always the first instance unless excluded).
+3. **Calendar listing** uses `propfind` instead of `fetchCalendars` (§4) to save one subrequest per calendar.
+4. **Cache key** on the Worker's own origin instead of `cache.invalid` (§6.1).
+5. **Provider guard** in `checkICloudAndSync` (§7.2).
+6. **No `secrets.required`** in `wrangler.jsonc` (§8.3).
+7. **DST edge rules** for TZIDs without VTIMEZONE (Intl path), per RFC 5545 §3.3.5: a repeated local time means
+   the first occurrence; a skipped one is read with the offset from before the jump.
+8. **Duplicate display names:** if several iCloud calendars share a requested name, all are read (union) and all
+   their ctags go into the version, so nothing is silently dropped.
+9. **Versions:** tsdav 2.5.0, ical.js 2.2.1, wrangler 4.156.2 (at least two weeks old at build time), pinned exactly.
+10. **Tests:** `npm test` at the repo root runs `tests/apps-script` (25 tests, including `node --check` on every
+    `.gs`) and `worker/test` (52 tests). No network: the CalDAV tests use an in-memory iCloud mock on `.invalid`
+    hosts.
+

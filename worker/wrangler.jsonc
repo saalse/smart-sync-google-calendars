@@ -1,0 +1,20 @@
+// Cloudflare Worker: iCloud busy-time feed for Apps Script (see README.md and ../docs/icloud-spec.md).
+// No account IDs, routes or secret values here.
+//
+// Secrets (set after the first deploy with `npx wrangler secret put <NAME>`; for `wrangler dev` put them in
+// .dev.vars, see .dev.vars.example):
+//   ICLOUD_APPLE_ID, ICLOUD_APP_PASSWORD, FEED_TOKEN
+// Until all three exist the Worker answers 500 not_configured.
+// They are deliberately not listed under "secrets.required": with that field the first `wrangler deploy` of a new
+// Worker refuses to run unless the secrets come from a file on disk (--secrets-file).
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "icloud-busy-feed",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+  // Optional, tests only: "vars": { "CALDAV_SERVER_URL": "http://127.0.0.1:8799" }
+}
