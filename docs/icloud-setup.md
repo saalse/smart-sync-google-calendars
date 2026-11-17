@@ -14,7 +14,7 @@ calendar. Design and every rule: [`icloud-spec.md`](https://saalse-smart-sync-go
 Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md).
 
 **Before you start:** iCloud reaches the proxy only through **MirrorBusy**. Steps 1–5 work on their own and show
-you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](./proxy-setup.md).
+you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup).
 
 ## What you need
 
@@ -130,7 +130,7 @@ ones that block your own time: copy their names from the log into `ICLOUD_CALEND
 count), for example `const ICLOUD_CALENDARS = ["Work", "Family"]`, save, and run `setupICloud` again. With more than
 10 calendars you have to pick.
 
-### 6. Turn it on in the proxy (after [MirrorBusy is set up](./proxy-setup.md))
+### 6. Turn it on in the proxy (after [MirrorBusy is set up](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup))
 
 1. If your project shows `appsscript.json` with an `oauthScopes` list (projects pushed with clasp do), add
    `"https://www.googleapis.com/auth/script.scriptapp"` to it, so that setup can create the trigger. Projects made

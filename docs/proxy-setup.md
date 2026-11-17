@@ -1,4 +1,8 @@
-# Proxy calendar with plain "Busy" (MirrorBusy): setup
+---
+title: "Proxy calendar with plain Busy events"
+sidebarTitle: Proxy setup
+description: "MirrorBusy: copy your busy time into a separate account's primary calendar as plain Busy events, for booking tools."
+---
 
 Some booking tools only read the primary calendar of the Google account you connect to them. Sharing Busy Time with
 that account doesn't help, because the tool ignores shared calendars, and connecting your real account would show it
@@ -6,7 +10,7 @@ every title, place and guest.
 
 MirrorBusy solves this with a separate **proxy** Google account. You connect only the proxy to the booking tool.
 At the end of every sync, MirrorBusy keeps one event in the proxy's **primary** calendar for each busy event in Busy
-Time, and optionally for each busy interval from iCloud ([`icloud-setup.md`](./icloud-setup.md)). Each event is:
+Time, and optionally for each busy interval from iCloud ([`icloud-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup)). Each event is:
 
 - titled `Busy`, with no place, notes, guests, conference link or reminders;
 - private and shown as busy;
@@ -18,7 +22,7 @@ creator is your main account (Google shows "Created by" with its address), becau
 
 ## What you need
 
-- the Apps Script project from [`setup-ui-based.md`](./setup-ui-based.md), already syncing into Busy Time;
+- the Apps Script project from [`setup-ui-based.md`](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based), already syncing into Busy Time;
 - a second Google account for the proxy (a free Gmail account is fine). Its primary calendar is the one the
   booking tool reads.
 
@@ -52,9 +56,9 @@ Busy Time. MirrorBusy refuses to run if you do.
 In the Apps Script project (the main account):
 
 1. Click **+** → **Script**, name it `MirrorBusy`, and paste the whole of
-   [`scripts/MirrorBusy.gs`](../scripts/MirrorBusy.gs).
+   [`scripts/MirrorBusy.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/MirrorBusy.gs).
 2. Open `SyncCalendarsIntoOne.gs`, replace its contents with the current
-   [`scripts/SyncCalendarsIntoOne.gs`](../scripts/SyncCalendarsIntoOne.gs). It calls MirrorBusy at the end of
+   [`scripts/SyncCalendarsIntoOne.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/SyncCalendarsIntoOne.gs). It calls MirrorBusy at the end of
    every sync.
 3. At the end of `Config.gs`, add:
    ```js
@@ -64,7 +68,7 @@ In the Apps Script project (the main account):
    `MIRROR_BUSY_TO` is the proxy's address, which is also the ID of its primary calendar.
 4. Save (⌘S / Ctrl+S).
 
-With clasp (see [`setup-cli-based.md`](./setup-cli-based.md)): pull the live project first, so your local
+With clasp (see [`setup-cli-based.md`](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based)): pull the live project first, so your local
 `Config.gs` matches it, then add the two lines and push.
 
 ### 3. Run `setupMirrorBusy`
@@ -118,7 +122,7 @@ For another day, add a line at the end of any file, `function checkDay() { debug
 
 ## Changing things later
 
-- **Add iCloud:** [`icloud-setup.md`](./icloud-setup.md), then put `"fetchICloudBusyIntervals"` into
+- **Add iCloud:** [`icloud-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup), then put `"fetchICloudBusyIntervals"` into
   `MIRROR_EXTRA_PROVIDERS`.
 - **See what the next sync would change:** run `dryRunMirrorBusy`. It writes nothing.
 - **Turn the mirror off:** set `MIRROR_BUSY_TO = ""`. The Busy events already in the proxy stay; delete them in the
@@ -134,7 +138,7 @@ For another day, add a line at the end of any file, `function checkDay() { debug
 | `this account can only see … the proxy calendar` | shared, but read-only | step 1, permission **Make changes to events** |
 | `access level is unknown because it is not in this account's calendar list` | the share email link wasn't clicked | step 1, last paragraph |
 | `MIRROR_BUSY_TO is also in CALENDARS_TO_MERGE` | the proxy is set as a source | remove it from `CALENDARS_TO_MERGE` |
-| `… FAILED (…)` in the `MirrorBusy:` line | a source couldn't be read; nothing was deleted | for iCloud see [`icloud-setup.md`](./icloud-setup.md#troubleshooting) |
+| `… FAILED (…)` in the `MirrorBusy:` line | a source couldn't be read; nothing was deleted | for iCloud see [`icloud-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup#troubleshooting) |
 | `N request(s) failed, retried at the next sync` | Google refused some writes (often a rate limit) | nothing; check that the count shrinks |
 | no `MirrorBusy:` line at all | `MIRROR_BUSY_TO` is empty, or `MirrorBusy.gs` or the new `SyncCalendarsIntoOne.gs` is missing | step 2 |
 

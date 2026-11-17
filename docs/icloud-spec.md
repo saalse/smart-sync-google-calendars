@@ -12,7 +12,7 @@ Author: [Alex Samson](https://saalse.com).
 Show busy time from iCloud calendars in the **proxy** Google account's **primary** calendar as plain `Busy` events,
 so booking tools that read only that calendar see iCloud commitments.
 
-- **MirrorBusy** (`scripts/MirrorBusy.gs`, setup: [`proxy-setup.md`](./proxy-setup.md)) writes the proxy events.
+- **MirrorBusy** (`scripts/MirrorBusy.gs`, setup: [`proxy-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup)) writes the proxy events.
   This spec covers reading iCloud and handing MirrorBusy busy intervals.
   iCloud does not go into Busy Time.
 - An iCloud change reaches the proxy within about 5 minutes. A full sync runs at least once a day.
