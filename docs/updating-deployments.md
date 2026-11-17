@@ -21,7 +21,7 @@ This guide covers routine deployments after your environment is set up.
        └─ See "No deployments"? Read: setup-cli-based.md
 ```
 
-For complete initial setup (Node.js, nvm, clasp, authentication, triggers), see [`setup-cli-based.md`](/setup-cli-based).
+For complete initial setup (Node.js, nvm, clasp, authentication, triggers), see [`setup-cli-based.md`](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based).
 
 ## Before You Start
 - Open a terminal in the project directory.
@@ -29,14 +29,14 @@ For complete initial setup (Node.js, nvm, clasp, authentication, triggers), see 
   ```bash
   nvm use
   ```
-  If you see "command not found: npx" or similar errors, see the [CLI Setup Guide](/setup-cli-based#1-prerequisites) for troubleshooting.
+  If you see "command not found: npx" or similar errors, see the [CLI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based#1-prerequisites) for troubleshooting.
 - If dependencies were updated, rerun `npm install`.
 
 ## First Deployment
 
 If this is your first deployment, **stop here** and follow the complete setup guide:
 
-👉 **[CLI Setup Guide](/setup-cli-based)**
+👉 **[CLI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based)**
 
 That guide covers:
 - Creating your initial deployment

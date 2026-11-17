@@ -13,6 +13,13 @@
           "setup-cli-based",
           "updating-deployments"
         ]
+      },
+      {
+        "group": "iCloud (optional)",
+        "pages": [
+          "icloud-setup",
+          "icloud-spec"
+        ]
       }
     ]
   }

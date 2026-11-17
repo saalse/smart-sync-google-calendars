@@ -19,7 +19,7 @@ The CLI (Command-Line Interface) method provides:
 
 ## Alternative: UI-Based Setup
 
-**Prefer a simpler, browser-only setup?** → See the [UI Setup Guide](/setup-ui-based) for the UI method (no command-line tools required).
+**Prefer a simpler, browser-only setup?** → See the [UI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based) for the UI method (no command-line tools required).
 
 ---
 
@@ -210,7 +210,7 @@ You need to find the Calendar IDs for:
 - Each work calendar you want to sync
 - Your target calendar (where synced events will appear)
 
-**→ See [UI Setup Guide - Step 3: Find Your Calendar IDs](/setup-ui-based#step-3-find-your-calendar-ids) for detailed instructions.**
+**→ See [UI Setup Guide - Step 3: Find Your Calendar IDs](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-3-find-your-calendar-ids) for detailed instructions.**
 
 This section covers:
 - How to find your personal calendar ID
@@ -288,7 +288,7 @@ This opens your project in the Google Apps Script web editor.
 
 ### First Test Run
 
-**→ See [UI Setup Guide - Step 6: First Test Run & Authorization](/setup-ui-based#step-6-first-test-run--authorization) for detailed authorization and testing instructions.**
+**→ See [UI Setup Guide - Step 6: First Test Run and Authorization](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-6-first-test-run-and-authorization) for detailed authorization and testing instructions.**
 
 This section covers:
 - How to run the function manually
@@ -304,7 +304,7 @@ This section covers:
 
 ### Verify Synced Events
 
-**→ See [UI Setup Guide - Step 7: Verify Synced Events](/setup-ui-based#step-7-verify-synced-events) for instructions on verifying the sync worked.**
+**→ See [UI Setup Guide - Step 7: Verify Synced Events](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-7-verify-synced-events) for instructions on verifying the sync worked.**
 
 This section covers:
 - Finding synced events in your target calendar
@@ -325,7 +325,7 @@ This shows recent execution logs, which is helpful for debugging.
 
 The sync only runs when triggered. Set up triggers so your calendars stay in sync automatically.
 
-**→ See [UI Setup Guide - Step 8: Set Up Automatic Triggers](/setup-ui-based#step-8-set-up-automatic-triggers) for complete trigger setup instructions.**
+**→ See [UI Setup Guide - Step 8: Set Up Automatic Triggers](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-8-set-up-automatic-triggers) for complete trigger setup instructions.**
 
 This section covers:
 - **Calendar-based triggers (recommended)** - Syncs when source calendars update
@@ -344,7 +344,7 @@ This section covers:
 
 ## 11. Test Automatic Sync
 
-**→ See [UI Setup Guide - Step 9: Test Automatic Sync](/setup-ui-based#step-9-test-automatic-sync) for testing instructions.**
+**→ See [UI Setup Guide - Step 9: Test Automatic Sync](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-9-test-automatic-sync) for testing instructions.**
 
 This section covers:
 - Creating a test event in a source calendar
@@ -465,7 +465,7 @@ For common sync issues not specific to CLI:
 - Triggers not firing
 - Quota/rate limits exceeded
 
-**→ See [UI Setup Guide - Troubleshooting](/setup-ui-based#troubleshooting) for comprehensive troubleshooting guide.**
+**→ See [UI Setup Guide - Troubleshooting](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#troubleshooting) for comprehensive troubleshooting guide.**
 
 ## 14. Ongoing Deployments
 
@@ -482,7 +482,7 @@ npm run deploy
 npm run clasp:logs
 ```
 
-For more details on the deployment workflow, see the [Updating Deployments Guide](/updating-deployments).
+For more details on the deployment workflow, see the [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments).
 
 ## 15. Using with AI Coding Assistants
 
@@ -574,8 +574,8 @@ If you make improvements that others might benefit from:
 
 ## Questions & Support
 
-- **General Setup:** See [UI Setup Guide](/setup-ui-based)
-- **Deployment Help:** See [Updating Deployments Guide](/updating-deployments)
+- **General Setup:** See [UI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based)
+- **Deployment Help:** See [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments)
 - **Calendar API:** [Google Calendar API Docs](https://developers.google.com/calendar/api)
 - **Apps Script:** [Google Apps Script Docs](https://developers.google.com/apps-script)
 - **clasp Documentation:** [GitHub - google/clasp](https://github.com/google/clasp)
