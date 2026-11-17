@@ -104,10 +104,13 @@ For developers interested in how the smart sync works under the hood:
 
 ## iCloud → proxy calendar (optional)
 
-You can also show busy time from chosen **iCloud** calendars in a proxy Google calendar, as plain `Busy` events with
+You can also show busy time from your **iCloud** calendars in a proxy Google calendar, as plain `Busy` events with
 no details. A small read-only Cloudflare Worker (`worker/`) reads iCloud over CalDAV and returns busy intervals only;
-`scripts/ICloudSource.gs` passes them on to MirrorBusy. A failed iCloud read never deletes anything. Setup:
-[`docs/icloud-setup.md`](./docs/icloud-setup.md). Design: [`docs/icloud-spec.md`](./docs/icloud-spec.md).
+`scripts/ICloudSource.gs` passes them on to MirrorBusy. A failed iCloud read never deletes anything. Setup takes the
+browser only, about 15 minutes: [`docs/icloud-setup.md`](./docs/icloud-setup.md). Design:
+[`docs/icloud-spec.md`](./docs/icloud-spec.md).
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/saalse/smart-sync-google-calendars/tree/main/worker)
 
 ## Troubleshooting
 
