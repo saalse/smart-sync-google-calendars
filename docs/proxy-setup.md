@@ -13,7 +13,8 @@ Time, and optionally for each busy interval from iCloud ([`icloud-setup.md`](./i
 - at the same time as the original; all-day stays all-day.
 
 The proxy never sees where an event came from. Each proxy event stores only two HMAC values, so apps connected to
-the proxy (which can read private event properties) learn nothing from them.
+the proxy (which can read private event properties) learn nothing from them. One thing they can see: each event's
+creator is your main account (Google shows "Created by" with its address), because that account writes the events.
 
 ## What you need
 
@@ -33,10 +34,15 @@ Sign in to [calendar.google.com](https://calendar.google.com) **as the proxy acc
    account's name).
 2. **Share with specific people or groups** → **Add people and groups** → type the address of your **main**
    account, the one that runs the Apps Script project.
-3. **Permissions:** **Make changes to events**. Click **Send**.
+3. **Permissions:** **Make changes and see all event details**. Click **Send**. Don't pick "Make changes (see
+   private events as free/busy)": the proxy's Busy events are private, so that option would hide them from the script.
+4. Optional, still as the proxy: under **Event notifications** of the same calendar, remove the default notification.
+   Reminders belong to each person who sees a calendar, so MirrorBusy can switch them off only for your main account;
+   without this step the proxy account gets a notification before every Busy event.
 
 Then, in your **main** account's mailbox, open the email from Google Calendar and click the link to add the
-calendar. It now shows under **Other calendars**.
+calendar (or open `https://calendar.google.com/calendar/r?cid=<proxy address>` signed in as the main account). It
+now shows under **Other calendars**.
 
 This is the only share needed. Never add the proxy to `CALENDARS_TO_MERGE`: its Busy events would loop back into
 Busy Time. MirrorBusy refuses to run if you do.
