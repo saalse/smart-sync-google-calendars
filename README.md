@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/busy-calendars-logo.gif" alt="Busy Calendars logo" width="480">
+</p>
+
 # Busy Calendars
 
 **Private busy-time sync for Google & iCloud calendars.**
