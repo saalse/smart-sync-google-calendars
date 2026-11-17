@@ -111,7 +111,8 @@ Some booking tools read only the primary calendar of the Google account you conn
 event per busy event in Busy Time: private, no place, notes, guests, conference link or reminders. It runs at the end
 of every sync, changes only what changed, undoes edits made in the proxy, never touches the proxy's own events
 (bookings), and deletes nothing while any source failed to load. One share from the proxy ("Make changes to
-events") is all it needs: [`docs/proxy-setup.md`](./docs/proxy-setup.md).
+events") is all it needs: [`docs/proxy-setup.md`](./docs/proxy-setup.md). A Google Calendar booking page in your
+own Google account can check the proxy too, so no outside booking service has to read your calendars at all.
 
 ## iCloud → proxy calendar (optional)
 

@@ -1,7 +1,7 @@
 ---
 title: "Proxy calendar with plain Busy events"
 sidebarTitle: Proxy setup
-description: "MirrorBusy: copy your busy time into a separate account's primary calendar as plain Busy events, for booking tools."
+description: "MirrorBusy: copy your busy time into a separate account's primary calendar as plain Busy events, for booking tools or a Google Calendar booking page."
 ---
 
 Some booking tools only read the primary calendar of the Google account you connect to them. Sharing Busy Time with
@@ -106,6 +106,44 @@ To see where each Busy came from, run `debugProxyDay` (in `MirrorBusy.gs`). It w
 event in the proxy today, the source of each Busy, and any event MirrorBusy didn't write (for example a booking).
 For another day, add a line at the end of any file, `function checkDay() { debugProxyDay("2026-11-20") }`, run
 `checkDay`, and delete the line again.
+
+## Use it with a Google Calendar booking page
+
+Instead of connecting the proxy to an outside booking tool, you can use Google Calendar's own booking page
+(appointment schedule) in your main work account and let it check the proxy. Then no outside service reads any of
+your calendars, and every booking is a normal event in your own primary calendar, with its own Google Meet link
+that your account owns. The guest is on the invite, so they join without knocking.
+
+Checking more than one calendar needs an eligible plan: Google Workspace Business Standard or higher, Workspace
+Individual, or Google One Premium ([Google's list](https://support.google.com/calendar/answer/16287038)). Business
+Starter can't do it.
+
+1. **Proxy account:** share its primary calendar with the account that owns the booking page, permission **See all
+   event details** (the proxy holds only plain `Busy` events, so nothing else is revealed). Google doesn't document
+   whether free/busy-only sharing works here.
+2. **Booking page account:** open the link in Google's share email (or
+   `https://calendar.google.com/calendar/r?cid=<proxy address>`), so the proxy shows under **Other calendars**.
+3. Open the booking page → edit (pencil) → **Calendars** → keep **Check calendars for availability** on and tick the
+   proxy calendar next to your own. Click **Next**, then **Save**.
+4. **Check:** open the public booking page. Times when the proxy shows `Busy` are gone. Make a test booking from
+   another address: it appears in your primary calendar with a Meet link, and within a minute or two as `Busy` in
+   the proxy. Then cancel it.
+
+Bookings land in the booking page account's primary calendar. If that calendar is already a source in
+`CALENDARS_TO_MERGE`, they reach Busy Time and the proxy with no extra setup, so tools that read the proxy see them
+too. Still never add the proxy itself to `CALENDARS_TO_MERGE`.
+
+Good to know:
+
+- **Buffer time** in Google's booking page spaces out every start time (with 30 minutes plus a 10-minute buffer, the
+  slots start at 9:00, 9:40, 10:20…), so two bookings are never back to back. **Maximum bookings per day** caps the
+  number of bookings.
+- A test booking made from one of your own source accounts shows as two `Busy` events at the same time in the
+  proxy: the event is in the booking page's calendar and, as an invitation, in your other source calendar. A real
+  guest gives one.
+- To retire an outside booking tool after switching: disconnect its calendars, delete its booking links, and remove
+  its access in each Google account (Google Account → Security → Third-party apps & services). If it read iCloud,
+  revoke its app-specific password at [account.apple.com](https://account.apple.com).
 
 ## How it behaves
 
