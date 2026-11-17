@@ -42,7 +42,13 @@ function SyncCalendarsIntoOne() {
     endTime.setHours(0, 0, 0, 0)
     endTime.setDate(endTime.getDate() + SYNC_DAYS_IN_FUTURE + 1)
 
-    executeSmartSync(startTime, endTime)
+    try {
+      executeSmartSync(startTime, endTime)
+    } finally {
+      // Busy Time → proxy calendar as plain "Busy" (MirrorBusy.gs; off unless MIRROR_BUSY_TO is set).
+      // Runs even if the sync above failed, so iCloud changes still reach the proxy. Never throws.
+      if (typeof mirrorBusyAfterSync_ === "function") mirrorBusyAfterSync_(endTime)
+    }
     
   } catch (e) {
     console.error('Sync failed with error: ' + e.toString())
@@ -155,6 +161,11 @@ function fetchSourceEvents(startTime, endTime) {
           events.items.forEach(event => {
             // Skip transparent/free events
             if (event.transparency && event.transparency === "transparent") {
+              return
+            }
+
+            // Loop guard: never read MirrorBusy's own "Busy" copies back in (the proxy must not be a source)
+            if (event.extendedProperties?.private?.mirrorBusy) {
               return
             }
 

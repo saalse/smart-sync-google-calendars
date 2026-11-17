@@ -102,9 +102,18 @@ For developers interested in how the smart sync works under the hood:
 
 - **Pagination Support**: Handles calendars with 2,500+ events by processing multiple pages of results from the Calendar API
 
+## Proxy calendar with plain "Busy" (optional)
+
+Some booking tools read only the primary calendar of the Google account you connect, and ignore shared calendars.
+**MirrorBusy** (`scripts/MirrorBusy.gs`) keeps a separate proxy account's primary calendar filled with one `Busy`
+event per busy event in Busy Time: private, no place, notes, guests, conference link or reminders. It runs at the end
+of every sync, changes only what changed, undoes edits made in the proxy, never touches the proxy's own events
+(bookings), and deletes nothing while any source failed to load. One share from the proxy ("Make changes to
+events") is all it needs: [`docs/proxy-setup.md`](./docs/proxy-setup.md).
+
 ## iCloud → proxy calendar (optional)
 
-You can also show busy time from your **iCloud** calendars in a proxy Google calendar, as plain `Busy` events with
+You can also show busy time from your **iCloud** calendars in the proxy calendar, as plain `Busy` events with
 no details. A small read-only Cloudflare Worker (`worker/`) reads iCloud over CalDAV and returns busy intervals only;
 `scripts/ICloudSource.gs` passes them on to MirrorBusy. A failed iCloud read never deletes anything. Setup takes the
 browser only, about 15 minutes: [`docs/icloud-setup.md`](./docs/icloud-setup.md). Design:
