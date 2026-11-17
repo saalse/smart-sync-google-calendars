@@ -48,8 +48,8 @@ So I used Cursor to completely rewrite the algorithm, making it sync each event 
 
 Choose your setup method:
 
-- **[UI-Based Setup](/setup-ui-based)** ← Start here! Browser-only, no command-line tools needed
-- **[CLI-Based Setup](/setup-cli-based)** ← For developers who want local editing and Git workflow, with [clasp](https://github.com/google/clasp), the Apps Script CLI to streamline development with AI coding agents.
+- **[UI-Based Setup](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based)** ← Start here! Browser-only, no command-line tools needed
+- **[CLI-Based Setup](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based)** ← For developers who want local editing and Git workflow, with [clasp](https://github.com/google/clasp), the Apps Script CLI to streamline development with AI coding agents.
 
 
 ## How Smart Sync Works
@@ -106,12 +106,19 @@ For developers interested in how the smart sync works under the hood:
 
 - **Pagination Support**: Handles calendars with 2,500+ events by processing multiple pages of results from the Calendar API
 
+## iCloud → proxy calendar (optional)
+
+You can also show busy time from your **iCloud** calendars in a proxy Google calendar, as plain `Busy` events with
+no details. A small read-only Cloudflare Worker reads iCloud and returns busy intervals only. A failed iCloud read
+never deletes anything. Setup takes the browser only: [iCloud setup](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup). Design:
+[iCloud design](https://saalse-smart-sync-google-calendars.docs7.io/icloud-spec).
+
 ## Troubleshooting
 
 Having issues? See the detailed troubleshooting sections in the setup guides:
 
-- [UI-Based Setup Troubleshooting](/setup-ui-based#troubleshooting)
-- [CLI-Based Setup Troubleshooting](/setup-cli-based#troubleshooting)
+- [UI-Based Setup Troubleshooting](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#troubleshooting)
+- [CLI-Based Setup Troubleshooting](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based#13-troubleshooting-cli-specific-issues)
 
 ## Credits
 

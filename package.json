@@ -4,13 +4,17 @@
   "description": "Smart sync multiple Google calendars into one unified calendar using Google Apps Script",
   "private": true,
   "scripts": {
-    "deploy": "cd scripts && npx clasp push && cd ..",
-    "clasp:create": "cd scripts && npx clasp create --title \"Smart Sync Google Calendars\" --rootDir . && cd ..",
-    "clasp:open": "cd scripts && npx clasp open && cd ..",
-    "clasp:logs": "cd scripts && npx clasp logs && cd ..",
-    "clasp:pull": "cd scripts && npx clasp pull && cd ..",
-    "clasp:version": "cd scripts && npx clasp version && cd ..",
-    "clasp:deploy": "cd scripts && npx clasp deploy && cd ..",
+    "deploy": "cd scripts && clasp push",
+    "clasp:login": "clasp login",
+    "clasp:create": "cd scripts && clasp create-script --type standalone --title \"Smart Sync Google Calendars\" --rootDir .",
+    "clasp:open": "cd scripts && clasp open-script",
+    "clasp:logs": "cd scripts && clasp tail-logs",
+    "clasp:pull": "cd scripts && clasp pull",
+    "clasp:status": "cd scripts && clasp show-file-status",
+    "clasp:version": "cd scripts && clasp create-version",
+    "clasp:deploy": "cd scripts && clasp create-deployment",
+    "clasp:deployments": "cd scripts && clasp list-deployments",
+    "clasp:redeploy": "cd scripts && clasp update-deployment",
     "test": "node --test \"tests/apps-script/*.test.js\" && npm --prefix worker test",
     "test:apps-script": "node --test \"tests/apps-script/*.test.js\"",
     "test:worker": "npm --prefix worker test"
@@ -31,6 +35,9 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@google/clasp": "^2.4.2"
+    "@google/clasp": "3.4.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

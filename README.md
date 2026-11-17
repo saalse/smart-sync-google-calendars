@@ -126,7 +126,7 @@ browser only, about 15 minutes: [`docs/icloud-setup.md`](./docs/icloud-setup.md)
 Having issues? See the detailed troubleshooting sections in the setup guides:
 
 - [UI-Based Setup Troubleshooting](./docs/setup-ui-based.md#troubleshooting)
-- [CLI-Based Setup Troubleshooting](./docs/setup-cli-based.md#troubleshooting)
+- [CLI-Based Setup Troubleshooting](./docs/setup-cli-based.md#13-troubleshooting-cli-specific-issues)
 
 ## Credits
 

@@ -1,20 +1,24 @@
-# iCloud busy time in the proxy calendar: setup
+---
+title: "iCloud busy time in the proxy calendar"
+sidebarTitle: iCloud setup
+description: "Show iCloud busy time in a proxy Google calendar, set up in the browser."
+---
 
 This guide shows busy time from your iCloud calendars in the proxy Google account's primary calendar, as plain
 `Busy` events with no details. Booking tools that read only that calendar then see your iCloud commitments.
 
 How it works: a small Cloudflare Worker reads iCloud and returns busy intervals only (no titles, places or
 people). `ICloudSource.gs` in your Apps Script project fetches them, and MirrorBusy writes them into the proxy
-calendar. Design and every rule: [`icloud-spec.md`](./icloud-spec.md).
+calendar. Design and every rule: [`icloud-spec.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-spec).
 
-Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](../worker/README.md).
+Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md).
 
 **Before you start:** iCloud reaches the proxy only through **MirrorBusy**. Steps 1–5 work on their own and show
 you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](./proxy-setup.md).
 
 ## What you need
 
-- the Apps Script project from [`setup-ui-based.md`](./setup-ui-based.md), already working;
+- the Apps Script project from [`setup-ui-based.md`](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based), already working;
 - an Apple ID with two-factor authentication (Apple requires it for app-specific passwords);
 - a free **Cloudflare** account and a free **GitHub** account (GitLab works too).
 
@@ -47,7 +51,7 @@ Time calendar). If you don't see it at [script.google.com](https://script.google
 is selected (top right).
 
 1. Click **+** → **Script**, name it `ICloudSource`, and paste the whole of
-   [`scripts/ICloudSource.gs`](../scripts/ICloudSource.gs).
+   [`scripts/ICloudSource.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/ICloudSource.gs).
 2. At the end of `Config.gs`, add these four lines, with your own time zone
    ([IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), for example `"Asia/Ho_Chi_Minh"` or
    `"Europe/Berlin"`):
@@ -207,4 +211,4 @@ Never put the Apple ID, the passwords or the token into the repo or a shared fil
 
 ---
 
-Author: [Alex Samson](https://saalse.com). Design: [`icloud-spec.md`](./icloud-spec.md).
+Author: [Alex Samson](https://saalse.com). Design: [`icloud-spec.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-spec).
