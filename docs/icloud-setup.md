@@ -9,16 +9,16 @@ This guide shows busy time from your iCloud calendars in the proxy Google accoun
 
 How it works: a small Cloudflare Worker reads iCloud and returns busy intervals only (no titles, places or
 people). `ICloudSource.gs` in your Apps Script project fetches them, and MirrorBusy writes them into the proxy
-calendar. Design and every rule: [`icloud-spec.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-spec).
+calendar. Design and every rule: [`icloud-spec.md`](https://saalse-busy-calendars.docs7.io/icloud-spec).
 
-Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md).
+Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](https://github.com/saalse/busy-calendars/blob/main/worker/README.md).
 
 **Before you start:** iCloud reaches the proxy only through **MirrorBusy**. Steps 1–5 work on their own and show
-you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup).
+you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](https://saalse-busy-calendars.docs7.io/proxy-setup).
 
 ## What you need
 
-- the Apps Script project from [`setup-ui-based.md`](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based), already working;
+- the Apps Script project from [`setup-ui-based.md`](https://saalse-busy-calendars.docs7.io/setup-ui-based), already working;
 - an Apple ID with two-factor authentication (Apple requires it for app-specific passwords);
 - a free **Cloudflare** account and a free **GitHub** account (GitLab works too).
 
@@ -51,7 +51,7 @@ Time calendar). If you don't see it at [script.google.com](https://script.google
 is selected (top right).
 
 1. Click **+** → **Script**, name it `ICloudSource`, and paste the whole of
-   [`scripts/ICloudSource.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/ICloudSource.gs).
+   [`scripts/ICloudSource.gs`](https://github.com/saalse/busy-calendars/blob/main/scripts/ICloudSource.gs).
 2. At the end of `Config.gs`, add these four lines, with your own time zone
    ([IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), for example `"Asia/Ho_Chi_Minh"` or
    `"Europe/Berlin"`):
@@ -81,7 +81,7 @@ The button copies the Worker's code (the `worker/` folder only) into a new repos
 Cloudflare builds a Worker from a repository you control. Nothing secret goes into that repository; you can make it
 private.
 
-1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/saalse/smart-sync-google-calendars/tree/main/worker)
+1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/saalse/busy-calendars/tree/main/worker)
    and sign in to Cloudflare (or create a free account; turn on two-factor authentication, since your Apple
    password will live there).
 2. You should see **Set up your application** with three fields called `ICLOUD_APPLE_ID`, `ICLOUD_APP_PASSWORD`
@@ -130,7 +130,7 @@ ones that block your own time: copy their names from the log into `ICLOUD_CALEND
 count), for example `const ICLOUD_CALENDARS = ["Work", "Family"]`, save, and run `setupICloud` again. With more than
 10 calendars you have to pick.
 
-### 6. Turn it on in the proxy (after [MirrorBusy is set up](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup))
+### 6. Turn it on in the proxy (after [MirrorBusy is set up](https://saalse-busy-calendars.docs7.io/proxy-setup))
 
 1. If your project shows `appsscript.json` with an `oauthScopes` list (projects pushed with clasp do), add
    `"https://www.googleapis.com/auth/script.scriptapp"` to it, so that setup can create the trigger. Projects made
@@ -211,4 +211,4 @@ Never put the Apple ID, the passwords or the token into the repo or a shared fil
 
 ---
 
-Author: [Alex Samson](https://saalse.com). Design: [`icloud-spec.md`](https://saalse-smart-sync-google-calendars.docs7.io/icloud-spec).
+Author: [Alex Samson](https://saalse.com). Design: [`icloud-spec.md`](https://saalse-busy-calendars.docs7.io/icloud-spec).

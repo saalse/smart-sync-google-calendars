@@ -4,7 +4,7 @@ sidebarTitle: UI-based setup
 description: Set up the sync in the Apps Script editor, browser only.
 ---
 
-This guide walks you through setting up Smart Sync Google Calendars using the **Apps Script Editor** (UI-based method). This is the easiest way to get started — no command-line tools required!
+This guide walks you through setting up Busy Calendars using the **Apps Script Editor** (UI-based method). This is the easiest way to get started — no command-line tools required!
 
 ## What You'll Accomplish
 
@@ -23,7 +23,7 @@ By the end of this guide, you'll have:
 - AI assistant integration (Cursor, GitHub Copilot)
 - Command-line deployment workflow
 
-**→ See the [CLI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based) for the CLI/clasp method.**
+**→ See the [CLI Setup Guide](https://saalse-busy-calendars.docs7.io/setup-cli-based) for the CLI/clasp method.**
 
 Otherwise, continue below for the UI-based setup! ⬇️
 
@@ -40,7 +40,7 @@ You only need:
 
 1. Go to [Google Apps Script](https://script.google.com/home)
 2. Click **"New project"** (+ button in top-left)
-3. Click on "Untitled project" at the top and rename it to: **Smart Sync Google Calendars**
+3. Click on "Untitled project" at the top and rename it to: **Busy Calendars**
 4. You should see a default `Code.gs` file with a sample function — we'll replace this next
 
 ## Step 2: Add Script Files
@@ -51,7 +51,7 @@ Now we'll add the three script files that make up the sync system.
 
 1. Click on `Code.gs` in the left sidebar (if not already open)
 2. **Select all** the default code (Cmd+A or Ctrl+A) and **delete it**
-3. Copy the entire contents of [`scripts/SyncCalendarsIntoOne.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/SyncCalendarsIntoOne.gs) from the repository
+3. Copy the entire contents of [`scripts/SyncCalendarsIntoOne.gs`](https://github.com/saalse/busy-calendars/blob/main/scripts/SyncCalendarsIntoOne.gs) from the repository
 4. Paste it into the editor
 5. Rename the file:
    - Click the three dots (⋮) next to `Code.gs`
@@ -64,7 +64,7 @@ Now we'll add the three script files that make up the sync system.
 1. Click the **"+"** button next to "Files" in the left sidebar
 2. Select **"Script"**
 3. Name it: `BatchRequests`
-4. Copy the entire contents of [`scripts/BatchRequests.gs`](https://github.com/saalse/smart-sync-google-calendars/blob/main/scripts/BatchRequests.gs) from the repository
+4. Copy the entire contents of [`scripts/BatchRequests.gs`](https://github.com/saalse/busy-calendars/blob/main/scripts/BatchRequests.gs) from the repository
 5. Paste it into the new file
 6. Press Cmd+S (Mac) or Ctrl+S (Windows) to save
 
@@ -215,7 +215,7 @@ Now let's test the script and authorize it to access your calendars:
 8. You may see a warning: **"Google hasn't verified this app"**
    - This is normal for personal scripts you create
    - Click **"Advanced"**
-   - Click **"Go to Smart Sync Google Calendars (unsafe)"**
+   - Click **"Go to Busy Calendars (unsafe)"**
    - This is safe because YOU are the developer
 9. Review the permissions requested:
    - View and edit your calendars
@@ -358,7 +358,7 @@ You can monitor sync activity:
 
 **Solutions:**
 1. Make sure you completed the full authorization flow (Steps 6.4-6.10)
-2. When you see "Google hasn't verified this app", you must click "Advanced" → "Go to Smart Sync Google Calendars (unsafe)"
+2. When you see "Google hasn't verified this app", you must click "Advanced" → "Go to Busy Calendars (unsafe)"
 3. Grant all requested permissions
 4. This is safe because you are the developer and owner of the script
 
@@ -451,7 +451,7 @@ You can now share your "Busy Time" calendar with others:
 If you need to add/remove calendars or change settings:
 
 1. Go back to the [Apps Script Editor](https://script.google.com/home)
-2. Open your project: "Smart Sync Google Calendars"
+2. Open your project: "Busy Calendars"
 3. Edit `Config.gs` with your changes
 4. Press **Cmd+S** or **Ctrl+S** to save
 5. Changes take effect immediately — the next sync will use the new settings
@@ -468,7 +468,7 @@ To keep an eye on your sync:
 
 If you want to switch to local file editing and version control for ongoing maintenance:
 
-1. Follow the [CLI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based) to set up clasp
+1. Follow the [CLI Setup Guide](https://saalse-busy-calendars.docs7.io/setup-cli-based) to set up clasp
 2. Pull your existing script to your local machine
 3. Edit files locally and deploy changes with `npm run deploy`
 4. Your triggers and config will remain intact
@@ -477,9 +477,9 @@ If you want to switch to local file editing and version control for ongoing main
 
 - **Calendar API Documentation:** [Google Calendar API Docs](https://developers.google.com/calendar/api)
 - **Apps Script Documentation:** [Google Apps Script Docs](https://developers.google.com/apps-script)
-- **Project Repository:** [GitHub](https://github.com/saalse/smart-sync-google-calendars)
-- **For CLI Setup:** See [CLI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-cli-based)
-- **For Code Updates:** See [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments)
+- **Project Repository:** [GitHub](https://github.com/saalse/busy-calendars)
+- **For CLI Setup:** See [CLI Setup Guide](https://saalse-busy-calendars.docs7.io/setup-cli-based)
+- **For Code Updates:** See [Updating Deployments Guide](https://saalse-busy-calendars.docs7.io/updating-deployments)
 
 ---
 

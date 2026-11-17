@@ -1,5 +1,5 @@
 // iCloud busy time for the proxy calendar (docs/icloud-spec.md §7; setup: docs/icloud-setup.md).
-// Author: Alex Samson (https://saalse.com). Project: https://github.com/saalse/smart-sync-google-calendars
+// Author: Alex Samson (https://saalse.com). Project: https://github.com/saalse/busy-calendars
 //
 // setupICloud()                                 run by hand: creates the feed token, checks the Worker, creates
 //                                               the trigger. Safe to run again at any time (docs/icloud-setup.md).

@@ -1,5 +1,5 @@
 /**
- * Smart Sync Google Calendars - Intelligent Calendar Synchronization
+ * Busy Calendars - Intelligent Calendar Synchronization
  * 
  * Author: Alex Samson (@saalse)
  * License: MIT

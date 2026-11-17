@@ -1,12 +1,12 @@
 {
-  "name": "smart-sync-google-calendars",
+  "name": "busy-calendars",
   "version": "1.0.0",
-  "description": "Smart sync multiple Google calendars into one unified calendar using Google Apps Script",
+  "description": "Private busy-time sync for Google & iCloud calendars, built on Google Apps Script and a Cloudflare Worker",
   "private": true,
   "scripts": {
     "deploy": "cd scripts && clasp push",
     "clasp:login": "clasp login",
-    "clasp:create": "cd scripts && clasp create-script --type standalone --title \"Smart Sync Google Calendars\" --rootDir .",
+    "clasp:create": "cd scripts && clasp create-script --type standalone --title \"Busy Calendars\" --rootDir .",
     "clasp:open": "cd scripts && clasp open-script",
     "clasp:logs": "cd scripts && clasp tail-logs",
     "clasp:pull": "cd scripts && clasp pull",
