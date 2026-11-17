@@ -44,6 +44,9 @@ This project syncs multiple Google calendars into a single "Busy Time" calendar 
 
 ## 1. Prerequisites
 
+You need **Node.js 22 or newer**: the project uses clasp 3, which requires it. The `.nvmrc` file selects the
+current Node.js LTS, which is newer than that.
+
 ### a. Check nvm Installation
 
 ```bash
@@ -127,16 +130,16 @@ Then reload: `source ~/.zshrc`
 
 ```bash
 # These should now work and show version numbers
-node -v
+node -v       # v22 or newer
 npm -v
-npx --version  # Verify npx is also available
+npx --version # Verify npx is also available
 ```
 
-If any of these commands fail, ensure you've run `nvm use` in the project directory.
+If any of these commands fail, or `node -v` shows something older than v22, run `nvm use` in the project directory.
 
 ## 2. Install Project Dependencies
 
-The project includes a `package.json` file with `clasp` as a development dependency.
+The project includes a `package.json` file with `clasp` 3 as a development dependency (an exact version).
 
 ```bash
 # Install all dependencies locally
@@ -148,9 +151,27 @@ This installs `clasp` locally in the `node_modules` directory rather than global
 ## 3. Verify Clasp Installation
 
 ```bash
-# Check if clasp is available (should show version)
+# Check if clasp is available (should show 3.x)
 npx clasp --version
 ```
+
+**Upgrading from clasp 2?** Run `npm install` again. Your existing login keeps working (check with
+`npx clasp show-authorized-user`). Some commands were renamed; the npm scripts below already use the new names:
+
+| clasp 2 | clasp 3 | npm script |
+|---|---|---|
+| `clasp create` | `clasp create-script` | `npm run clasp:create` |
+| `clasp open` | `clasp open-script` | `npm run clasp:open` |
+| `clasp logs` | `clasp tail-logs` | `npm run clasp:logs` |
+| `clasp version` | `clasp create-version` | `npm run clasp:version -- "description"` |
+| `clasp deploy` | `clasp create-deployment` | `npm run clasp:deploy` |
+| `clasp deployments` | `clasp list-deployments` | `npm run clasp:deployments` |
+| `clasp deploy -i <id>` | `clasp update-deployment <id>` | `npm run clasp:redeploy -- <id>` |
+| `clasp status` | `clasp show-file-status` | `npm run clasp:status` |
+| `clasp whoami` | `clasp show-authorized-user` | — |
+
+In clasp 3, `create`, `logs`, `version`, `deploy`, `deployments` and `status` still work as aliases (per `npx clasp --help`);
+`open` and `whoami` are gone.
 
 ## 4. Authenticate with Google Apps Script
 
@@ -164,7 +185,7 @@ npx clasp --version
 
 ```bash
 # Login using the locally installed clasp
-npx clasp login
+npm run clasp:login
 ```
 
 This command will:
@@ -182,7 +203,7 @@ Now you can create the Apps Script project in your Google account.
 npm run clasp:create
 ```
 
-This runs: `clasp create --title "Smart Sync Google Calendars" --rootDir .` (from the `scripts/` directory)
+This runs `clasp create-script --type standalone --title "Smart Sync Google Calendars" --rootDir .` in the `scripts/` directory.
 
 This command creates a new standalone Google Apps Script project in your Google account and creates a `.clasp.json` file in the `scripts/` directory.
 
@@ -245,10 +266,17 @@ After creating the project and configuring your calendars, deploy the code:
 npm run deploy
 ```
 
-This command pushes your local files (`scripts/SyncCalendarsIntoOne.gs`, `scripts/BatchRequests.gs`, `scripts/Config.gs`, `scripts/appsscript.json`) to Google Apps Script.
+This command pushes every `.gs` file in `scripts/` plus `appsscript.json` to Google Apps Script:
+`SyncCalendarsIntoOne.gs`, `BatchRequests.gs`, `ICloudSource.gs` (optional iCloud feature; it does nothing until you
+configure it), your `Config.gs`, and `appsscript.json`. To see the list before pushing:
+
+```bash
+npm run clasp:status
+```
 
 **What happens during deployment:**
-- Your local `.gs` files are uploaded to Google Apps Script
+- The online project's files are **replaced** by your local ones. A file that exists only in the Apps Script editor
+  is deleted by the push, so edit locally, or run `npm run clasp:pull` first if you changed something online.
 - The `appsscript.json` manifest configures the project settings
 - Your `Config.gs` file is deployed (but remains git-ignored locally)
 
@@ -258,23 +286,20 @@ After the first push, create a "production" deployment. This gives you a stable 
 
 1. **Create a version:**
    ```bash
-   npm run clasp:version "Initial deployment"
+   npm run clasp:version -- "Initial deployment"
    ```
+   The `--` passes the description through npm to clasp.
    Note the version number that's output (e.g., "1").
 
 2. **Create a new deployment:**
    ```bash
-   npx clasp deploy --description "Production deployment" --versionNumber {VERSION_NUMBER}
+   npm run clasp:deploy -- --description "Production deployment" --versionNumber {VERSION_NUMBER}
    ```
-   Replace `{VERSION_NUMBER}` with the version number from step 1 (e.g., `--versionNumber 1`).
+   Replace `{VERSION_NUMBER}` with the version number from step 1 (e.g., `--versionNumber 1`). Without
+   `--versionNumber`, clasp creates a new version and deploys it.
 
-   **Note:** If the above command doesn't work, try:
-   ```bash
-   npx clasp deploy
-   ```
-   This creates a deployment using the latest version.
-
-3. **Save the Deployment ID:** The command will output a Deployment ID. Save this for future reference, or run `npx clasp deployments` to see it later.
+3. **Save the Deployment ID:** The command will output a Deployment ID. Save this for future reference, or run
+   `npm run clasp:deployments` to see it later.
 
 ## 9. Authorize and Test the Script
 
@@ -319,7 +344,9 @@ You can also view logs from the command line:
 npm run clasp:logs
 ```
 
-This shows recent execution logs, which is helpful for debugging.
+This runs `clasp tail-logs`. It reads Cloud Logging, so the script must be linked to a Google Cloud project; if it
+isn't, `npx clasp setup-logs` (in `scripts/`) explains what's missing. Without that link, use **Executions** in the
+Apps Script editor instead.
 
 ## 10. Set Up Automatic Triggers
 
@@ -414,10 +441,10 @@ When you're ready to create a stable version:
 
 ```bash
 # Create a new version
-npm run clasp:version "Description of changes"
+npm run clasp:version -- "Description of changes"
 
 # Create a deployment from that version
-npx clasp deploy --description "Production v2" --versionNumber 2
+npm run clasp:deploy -- --description "Production v2" --versionNumber 2
 ```
 
 ## 13. Troubleshooting CLI-Specific Issues
@@ -438,20 +465,26 @@ npx clasp deploy --description "Production v2" --versionNumber 2
 **Solution:**
 ```bash
 # Login again
-npx clasp login
+npm run clasp:login
 
 # Verify you're logged in
-npx clasp whoami
+npx clasp show-authorized-user
 ```
+
+### Issue: "Unknown command" or "error: unknown option"
+
+**Problem:** a command from a clasp 2 guide doesn't exist in clasp 3 (for example `clasp open`).
+
+**Solution:** use the clasp 3 name from the table in [step 3](#3-verify-clasp-installation), or the npm script.
 
 ### Issue: clasp Push Fails
 
 **Problem:** `npm run deploy` fails with an error.
 
 **Solution:**
-1. Check that you've authenticated: `npx clasp whoami`
+1. Check that you've authenticated: `npx clasp show-authorized-user`
 2. Verify the script ID in `scripts/.clasp.json` matches your project
-3. Try pulling first to sync: `npx clasp pull` (careful: this overwrites local changes)
+3. Try pulling first to sync: `npm run clasp:pull` (careful: this overwrites local changes)
 4. Check the Apps Script API is enabled at [script.google.com/home/usersettings](https://script.google.com/home/usersettings)
 
 ### General Troubleshooting
@@ -484,7 +517,20 @@ npm run clasp:logs
 
 For more details on the deployment workflow, see the [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments).
 
-## 15. Using with AI Coding Assistants
+## 15. Optional: iCloud Busy Time and Tests
+
+**iCloud.** `ICloudSource.gs` and the Cloudflare Worker in `worker/` show your iCloud busy time in a proxy calendar.
+Setup: [iCloud setup](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup). If you prefer the terminal for the Worker too, deploy it with
+wrangler as described in [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md); after pushing the Apps Script code, run
+`setupICloud` in the editor as the setup guide describes.
+
+**Tests.** The iCloud code has tests that need no network or real accounts:
+
+```bash
+npm test
+```
+
+## 16. Using with AI Coding Assistants
 
 ### Cursor AI
 
@@ -511,27 +557,34 @@ If you're using GitHub Copilot in VS Code:
    ```
 4. Accept suggestions and deploy
 
-## 16. Project Structure
+## 17. Project Structure
 
 Understanding the file structure helps with development:
 
 ```
 smart-sync-google-calendars/
-├── scripts/
-│   ├── SyncCalendarsIntoOne.gs    # Main sync logic
+├── scripts/                        # Everything here is pushed by clasp (.gs and appsscript.json)
+│   ├── SyncCalendarsIntoOne.gs     # Main sync logic
 │   ├── BatchRequests.gs            # Batch API handler
+│   ├── ICloudSource.gs             # Optional iCloud busy time (setupICloud, provider, trigger)
 │   ├── Config.gs                   # Your private config (git-ignored)
 │   ├── Config.gs.example           # Config template (safe to commit)
-│   ├── appsscript.json            # Project manifest
-│   └── .clasp.json                # Clasp configuration (git-ignored)
-├── docs/                           # Documentation
-│   ├── setup-ui-based.md          # UI setup guide
-│   ├── setup-cli-based.md         # This file
-│   └── updating-deployments.md    # Deployment guide
+│   ├── appsscript.json             # Project manifest
+│   └── .clasp.json                 # Clasp configuration (git-ignored)
+├── worker/                         # Optional Cloudflare Worker for iCloud (not pushed by clasp)
+├── tests/apps-script/              # Tests for ICloudSource.gs (npm test)
+├── docs/                           # Documentation, published as the docs site
+│   ├── docs.json                   # Docs site menu
+│   ├── index.mdx                   # Docs site home page
+│   ├── setup-ui-based.md           # UI setup guide
+│   ├── setup-cli-based.md          # This file
+│   ├── updating-deployments.md     # Deployment guide
+│   ├── icloud-setup.md             # iCloud setup
+│   ├── icloud-spec.md              # iCloud design
+│   └── images/                     # Screenshots
 ├── .gitignore                      # Git exclusions
-├── .nvmrc                          # Node.js version
+├── .nvmrc                          # Node.js version (current LTS)
 ├── package.json                    # npm dependencies & scripts
-├── package-lock.json               # Locked dependency versions
 └── README.md                       # Project overview
 ```
 
@@ -540,9 +593,10 @@ smart-sync-google-calendars/
 - **`SyncCalendarsIntoOne.gs`** - Contains all sync logic (fetching, comparing, updating events)
 - **`BatchRequests.gs`** - Helper class for efficient batch API requests
 - **`Config.gs`** - Your calendar IDs and settings (keep private!)
+- **`ICloudSource.gs`** - Optional iCloud busy time; inactive until configured
 - **`appsscript.json`** - Manifest that configures OAuth scopes and enabled services
 
-## 17. Next Steps
+## 18. Next Steps
 
 You're all set up for local development! Here's what you can do next:
 
