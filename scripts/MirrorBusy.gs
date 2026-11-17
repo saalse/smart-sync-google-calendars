@@ -1,5 +1,5 @@
 // MirrorBusy: plain "Busy" copies of your busy time in a proxy calendar (docs/proxy-setup.md).
-// Author: Alex Samson (https://saalse.com). Project: https://github.com/saalse/smart-sync-google-calendars
+// Author: Alex Samson (https://saalse.com). Project: https://github.com/saalse/busy-calendars
 //
 // setupMirrorBusy()        run by hand: checks the config and the proxy share, creates the key secret, shows the plan.
 // dryRunMirrorBusy()       run by hand: logs what the next sync would change in the proxy. Writes nothing.

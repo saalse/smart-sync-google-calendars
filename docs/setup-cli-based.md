@@ -4,7 +4,7 @@ sidebarTitle: CLI-based setup
 description: Set up the sync locally with clasp, Git and npm.
 ---
 
-This guide is for **developers** who want to work with the Smart Sync Google Calendars project using local development tools, version control, and command-line deployment.
+This guide is for **developers** who want to work with the Busy Calendars project using local development tools, version control, and command-line deployment.
 
 ## Why Use the CLI Method?
 
@@ -19,7 +19,7 @@ The CLI (Command-Line Interface) method provides:
 
 ## Alternative: UI-Based Setup
 
-**Prefer a simpler, browser-only setup?** → See the [UI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based) for the UI method (no command-line tools required).
+**Prefer a simpler, browser-only setup?** → See the [UI Setup Guide](https://saalse-busy-calendars.docs7.io/setup-ui-based) for the UI method (no command-line tools required).
 
 ---
 
@@ -69,7 +69,7 @@ The project includes an `.nvmrc` file that specifies the recommended Node.js ver
 
 ```bash
 # Navigate to project root
-cd /path/to/smart-sync-google-calendars
+cd /path/to/busy-calendars
 
 # Use the Node.js version specified in .nvmrc (LTS)
 nvm use
@@ -203,7 +203,7 @@ Now you can create the Apps Script project in your Google account.
 npm run clasp:create
 ```
 
-This runs `clasp create-script --type standalone --title "Smart Sync Google Calendars" --rootDir .` in the `scripts/` directory.
+This runs `clasp create-script --type standalone --title "Busy Calendars" --rootDir .` in the `scripts/` directory.
 
 This command creates a new standalone Google Apps Script project in your Google account and creates a `.clasp.json` file in the `scripts/` directory.
 
@@ -231,7 +231,7 @@ You need to find the Calendar IDs for:
 - Each work calendar you want to sync
 - Your target calendar (where synced events will appear)
 
-**→ See [UI Setup Guide - Step 3: Find Your Calendar IDs](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-3-find-your-calendar-ids) for detailed instructions.**
+**→ See [UI Setup Guide - Step 3: Find Your Calendar IDs](https://saalse-busy-calendars.docs7.io/setup-ui-based#step-3-find-your-calendar-ids) for detailed instructions.**
 
 This section covers:
 - How to find your personal calendar ID
@@ -313,7 +313,7 @@ This opens your project in the Google Apps Script web editor.
 
 ### First Test Run
 
-**→ See [UI Setup Guide - Step 6: First Test Run and Authorization](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-6-first-test-run-and-authorization) for detailed authorization and testing instructions.**
+**→ See [UI Setup Guide - Step 6: First Test Run and Authorization](https://saalse-busy-calendars.docs7.io/setup-ui-based#step-6-first-test-run-and-authorization) for detailed authorization and testing instructions.**
 
 This section covers:
 - How to run the function manually
@@ -329,7 +329,7 @@ This section covers:
 
 ### Verify Synced Events
 
-**→ See [UI Setup Guide - Step 7: Verify Synced Events](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-7-verify-synced-events) for instructions on verifying the sync worked.**
+**→ See [UI Setup Guide - Step 7: Verify Synced Events](https://saalse-busy-calendars.docs7.io/setup-ui-based#step-7-verify-synced-events) for instructions on verifying the sync worked.**
 
 This section covers:
 - Finding synced events in your target calendar
@@ -352,7 +352,7 @@ Apps Script editor instead.
 
 The sync only runs when triggered. Set up triggers so your calendars stay in sync automatically.
 
-**→ See [UI Setup Guide - Step 8: Set Up Automatic Triggers](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-8-set-up-automatic-triggers) for complete trigger setup instructions.**
+**→ See [UI Setup Guide - Step 8: Set Up Automatic Triggers](https://saalse-busy-calendars.docs7.io/setup-ui-based#step-8-set-up-automatic-triggers) for complete trigger setup instructions.**
 
 This section covers:
 - **Calendar-based triggers (recommended)** - Syncs when source calendars update
@@ -371,7 +371,7 @@ This section covers:
 
 ## 11. Test Automatic Sync
 
-**→ See [UI Setup Guide - Step 9: Test Automatic Sync](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#step-9-test-automatic-sync) for testing instructions.**
+**→ See [UI Setup Guide - Step 9: Test Automatic Sync](https://saalse-busy-calendars.docs7.io/setup-ui-based#step-9-test-automatic-sync) for testing instructions.**
 
 This section covers:
 - Creating a test event in a source calendar
@@ -498,7 +498,7 @@ For common sync issues not specific to CLI:
 - Triggers not firing
 - Quota/rate limits exceeded
 
-**→ See [UI Setup Guide - Troubleshooting](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based#troubleshooting) for comprehensive troubleshooting guide.**
+**→ See [UI Setup Guide - Troubleshooting](https://saalse-busy-calendars.docs7.io/setup-ui-based#troubleshooting) for comprehensive troubleshooting guide.**
 
 ## 14. Ongoing Deployments
 
@@ -515,13 +515,13 @@ npm run deploy
 npm run clasp:logs
 ```
 
-For more details on the deployment workflow, see the [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments).
+For more details on the deployment workflow, see the [Updating Deployments Guide](https://saalse-busy-calendars.docs7.io/updating-deployments).
 
 ## 15. Optional: iCloud Busy Time and Tests
 
 **iCloud.** `ICloudSource.gs` and the Cloudflare Worker in `worker/` show your iCloud busy time in a proxy calendar.
-Setup: [iCloud setup](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup). If you prefer the terminal for the Worker too, deploy it with
-wrangler as described in [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md); after pushing the Apps Script code, run
+Setup: [iCloud setup](https://saalse-busy-calendars.docs7.io/icloud-setup). If you prefer the terminal for the Worker too, deploy it with
+wrangler as described in [`worker/README.md`](https://github.com/saalse/busy-calendars/blob/main/worker/README.md); after pushing the Apps Script code, run
 `setupICloud` in the editor as the setup guide describes.
 
 **Tests.** The iCloud code has tests that need no network or real accounts:
@@ -562,7 +562,7 @@ If you're using GitHub Copilot in VS Code:
 Understanding the file structure helps with development:
 
 ```
-smart-sync-google-calendars/
+busy-calendars/
 ├── scripts/                        # Everything here is pushed by clasp (.gs and appsscript.json)
 │   ├── SyncCalendarsIntoOne.gs     # Main sync logic
 │   ├── BatchRequests.gs            # Batch API handler
@@ -628,12 +628,12 @@ If you make improvements that others might benefit from:
 
 ## Questions & Support
 
-- **General Setup:** See [UI Setup Guide](https://saalse-smart-sync-google-calendars.docs7.io/setup-ui-based)
-- **Deployment Help:** See [Updating Deployments Guide](https://saalse-smart-sync-google-calendars.docs7.io/updating-deployments)
+- **General Setup:** See [UI Setup Guide](https://saalse-busy-calendars.docs7.io/setup-ui-based)
+- **Deployment Help:** See [Updating Deployments Guide](https://saalse-busy-calendars.docs7.io/updating-deployments)
 - **Calendar API:** [Google Calendar API Docs](https://developers.google.com/calendar/api)
 - **Apps Script:** [Google Apps Script Docs](https://developers.google.com/apps-script)
 - **clasp Documentation:** [GitHub - google/clasp](https://github.com/google/clasp)
-- **Project Repository:** [GitHub](https://github.com/saalse/smart-sync-google-calendars)
+- **Project Repository:** [GitHub](https://github.com/saalse/busy-calendars)
 
 ---
 

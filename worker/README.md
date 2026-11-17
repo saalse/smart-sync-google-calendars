@@ -140,4 +140,4 @@ times.
 
 ## Author
 
-[Alex Samson](https://saalse.com). Part of [smart-sync-google-calendars](https://github.com/saalse/smart-sync-google-calendars).
+[Alex Samson](https://saalse.com). Part of [Busy Calendars](https://github.com/saalse/busy-calendars).

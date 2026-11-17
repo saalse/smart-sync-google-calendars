@@ -1,4 +1,6 @@
-# Smart Sync Google Calendars
+# Busy Calendars
+
+**Private busy-time sync for Google & iCloud calendars.**
 
 A free, secure, and unlimited solution to sync multiple Google calendars into one unified "Busy Time" calendar using Google Apps Script.
 
@@ -119,7 +121,7 @@ no details. A small read-only Cloudflare Worker (`worker/`) reads iCloud over Ca
 browser only, about 15 minutes: [`docs/icloud-setup.md`](./docs/icloud-setup.md). Design:
 [`docs/icloud-spec.md`](./docs/icloud-spec.md).
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/saalse/smart-sync-google-calendars/tree/main/worker)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/saalse/busy-calendars/tree/main/worker)
 
 ## Troubleshooting
 
