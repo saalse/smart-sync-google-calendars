@@ -12,7 +12,8 @@ Author: [Alex Samson](https://saalse.com).
 Show busy time from iCloud calendars in the **proxy** Google account's **primary** calendar as plain `Busy` events,
 so booking tools that read only that calendar see iCloud commitments.
 
-- **MirrorBusy** writes the proxy events. This spec covers reading iCloud and handing MirrorBusy busy intervals.
+- **MirrorBusy** (`scripts/MirrorBusy.gs`, setup: [`proxy-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup)) writes the proxy events.
+  This spec covers reading iCloud and handing MirrorBusy busy intervals.
   iCloud does not go into Busy Time.
 - An iCloud change reaches the proxy within about 5 minutes. A full sync runs at least once a day.
 - **A failed or partial iCloud read never deletes proxy events.**
@@ -223,7 +224,8 @@ iCloud). It never logs the token, credentials, calendar names, event text, UIDs 
   and cancelled overrides, THISANDFUTURE, floating, unknown TZID, declined, window edges, the iteration cap,
   shortcut equivalence. HTTP: auth, errors, cache, `/calendars`, `*`, no secrets in logs. CalDAV runs against an
   in-memory iCloud mock.
-- **`tests/apps-script`** (41 tests). Provider mapping and failures, horizon, "all" mode, the check decision table,
-  `setupICloud` paths, `node --check` on every `.gs`.
+- **`tests/apps-script/icloud-source.test.js`** (41 tests). Provider mapping and failures, horizon, "all" mode, the
+  check decision table, `setupICloud` paths, `node --check` on every `.gs`. MirrorBusy's own tests, including one
+  with the real `ICloudSource.gs`, are in `mirror-busy.test.js`.
 
 `npm run bench` and `npm run check` (wrangler dry run) live in `worker/`.

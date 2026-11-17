@@ -13,8 +13,8 @@ calendar. Design and every rule: [`icloud-spec.md`](https://saalse-smart-sync-go
 
 Everything below happens in the browser. Developers who prefer the terminal: [`worker/README.md`](https://github.com/saalse/smart-sync-google-calendars/blob/main/worker/README.md).
 
-**Before you start:** iCloud reaches the proxy only through **MirrorBusy**. Steps 1–5 work now and show you what
-would be synced. Step 6 needs MirrorBusy set up for your Google calendars.
+**Before you start:** iCloud reaches the proxy only through **MirrorBusy**. Steps 1–5 work on their own and show
+you what would be synced. Step 6 needs MirrorBusy set up first: [`proxy-setup.md`](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup).
 
 ## What you need
 
@@ -130,13 +130,14 @@ ones that block your own time: copy their names from the log into `ICLOUD_CALEND
 count), for example `const ICLOUD_CALENDARS = ["Work", "Family"]`, save, and run `setupICloud` again. With more than
 10 calendars you have to pick.
 
-### 6. Turn it on in the proxy (after MirrorBusy is set up)
+### 6. Turn it on in the proxy (after [MirrorBusy is set up](https://saalse-smart-sync-google-calendars.docs7.io/proxy-setup))
 
 1. If your project shows `appsscript.json` with an `oauthScopes` list (projects pushed with clasp do), add
    `"https://www.googleapis.com/auth/script.scriptapp"` to it, so that setup can create the trigger. Projects made
    in the browser don't need this.
 2. In `Config.gs`, add `"fetchICloudBusyIntervals"` to `MIRROR_EXTRA_PROVIDERS`.
-3. Run MirrorBusy's dry run and check what it would add.
+3. Open `MirrorBusy.gs`, run `dryRunMirrorBusy` and check what it would add: the log lists the planned `Busy`
+   events with their iCloud calendar.
 4. Run `setupICloud` once more. This time it also creates the trigger: `checkICloudAndSync` every 5 minutes.
 5. Run `SyncCalendarsIntoOne` once.
 

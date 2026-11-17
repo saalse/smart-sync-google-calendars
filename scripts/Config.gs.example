@@ -27,6 +27,17 @@ const DEFAULT_EVENT_TITLE = "Busy"
 // https://unicode-table.com/en/200B/
 const SEARCH_CHARACTER = "\u200B"
 
+// --- Proxy calendar with plain "Busy" events (optional, see docs/proxy-setup.md) ---
+
+// The proxy account's address, which is the ID of its primary calendar. The proxy shares that calendar with this
+// account with "Make changes to events". Leave empty to turn the mirror off. Never put the proxy into
+// CALENDARS_TO_MERGE: its Busy events would loop back (MirrorBusy refuses to run then).
+const MIRROR_BUSY_TO = ""
+
+// Extra busy-time sources for the proxy only (they don't go into Busy Time), by function name.
+// For iCloud: ["fetchICloudBusyIntervals"] (see below and docs/icloud-setup.md).
+const MIRROR_EXTRA_PROVIDERS = []
+
 // --- iCloud busy time for the proxy calendar (optional, see docs/icloud-setup.md) ---
 
 // The Worker's address, printed by Cloudflare after "Deploy to Cloudflare", e.g.
@@ -47,5 +58,5 @@ const ICLOUD_FLOATING_TIMEZONE = "Europe/Berlin"
 // rarely look further, and a short window keeps the Worker within the Cloudflare Free plan's CPU limit.
 const ICLOUD_DAYS_AHEAD = 30
 
-// iCloud reaches the proxy only through MirrorBusy: add "fetchICloudBusyIntervals" to its MIRROR_EXTRA_PROVIDERS,
+// iCloud reaches the proxy only through MirrorBusy: add "fetchICloudBusyIntervals" to MIRROR_EXTRA_PROVIDERS above,
 // then run setupICloud once more to create the trigger.

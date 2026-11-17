@@ -15,6 +15,12 @@
         ]
       },
       {
+        "group": "Proxy calendar (optional)",
+        "pages": [
+          "proxy-setup"
+        ]
+      },
+      {
         "group": "iCloud (optional)",
         "pages": [
           "icloud-setup",
