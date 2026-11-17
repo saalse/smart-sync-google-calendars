@@ -21,3 +21,5 @@ package-lock.json
 # Logs
 *.log
 
+# Internal docs (not published)
+docs/internal/

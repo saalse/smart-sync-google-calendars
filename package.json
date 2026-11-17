@@ -10,7 +10,10 @@
     "clasp:logs": "cd scripts && npx clasp logs && cd ..",
     "clasp:pull": "cd scripts && npx clasp pull && cd ..",
     "clasp:version": "cd scripts && npx clasp version && cd ..",
-    "clasp:deploy": "cd scripts && npx clasp deploy && cd .."
+    "clasp:deploy": "cd scripts && npx clasp deploy && cd ..",
+    "test": "node --test \"tests/apps-script/*.test.js\" && npm --prefix worker test",
+    "test:apps-script": "node --test \"tests/apps-script/*.test.js\"",
+    "test:worker": "npm --prefix worker test"
   },
   "keywords": [
     "google-calendar",
@@ -31,4 +34,3 @@
     "@google/clasp": "^2.4.2"
   }
 }
-

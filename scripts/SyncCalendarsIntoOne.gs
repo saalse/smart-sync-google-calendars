@@ -109,17 +109,27 @@ function fetchSyncedEvents(startTime, endTime) {
  * Fetches all source events from calendars to merge
  * @param {Date} startTime - Start of sync window
  * @param {Date} endTime - End of sync window
- * @returns {Map} Map of sourceEventKey → {sourceCalendarId, calendarName, sourceEvent}
+ * @returns {{sourceEventsMap: Map, failedSourceIds: Set}}
+ *   sourceEventsMap: sourceEventKey → {sourceCalendarId, calendarName, sourceEvent}
+ *   failedSourceIds: IDs of source calendars that could not be read in full.
+ *     categorizeChanges() never deletes Busy Time events from these sources.
  */
 function fetchSourceEvents(startTime, endTime) {
   const sourceEventsMap = new Map() // sourceEventKey → sourceEvent
-  
+  const failedSourceIds = new Set()
+
   for (let calendarName in CALENDARS_TO_MERGE) {
     const calendarId = CALENDARS_TO_MERGE[calendarName]
-    const calendarToCopy = CalendarApp.getCalendarById(calendarId)
+    let calendarToCopy = null
+    try {
+      calendarToCopy = CalendarApp.getCalendarById(calendarId)
+    } catch (e) {
+      console.error(`Cannot look up calendar ${calendarId}: ${e.message}`)
+    }
 
     if (!calendarToCopy) {
-      console.log("Calendar not found: '%s'.", calendarId)
+      console.log("Calendar not found: '%s'. Keeping its events in Busy Time.", calendarId)
+      failedSourceIds.add(calendarId)
       continue
     }
 
@@ -167,12 +177,14 @@ function fetchSourceEvents(startTime, endTime) {
       // Handle calendar access failures (permissions revoked, calendar deleted, etc.)
       console.error(`Cannot access calendar ${calendarId}: ${e.message}`)
       // Continue with other calendars - don't process deletions for this calendar
+      // A later page may have failed after earlier pages loaded, so the list is incomplete.
       // Events from this calendar will remain in Busy Time until access is restored
+      failedSourceIds.add(calendarId)
       continue
     }
   }
 
-  return sourceEventsMap
+  return { sourceEventsMap, failedSourceIds }
 }
 
 /**
@@ -322,9 +334,11 @@ function eventContentExistsInBusyCalendar(sourceEvent, calendarName, startTime, 
  * @param {Map} sourceEventsMap - Map of source events
  * @param {Date} startTime - Sync window start
  * @param {Date} endTime - Sync window end
+ * @param {Set} [failedSourceIds] - Source calendar IDs that failed to load; their events are never deleted
  * @returns {Object} Object with toCreate, toUpdate, toDelete, toSkip arrays
  */
-function categorizeChanges(syncedEventsMap, sourceEventsMap, startTime, endTime) {
+function categorizeChanges(syncedEventsMap, sourceEventsMap, startTime, endTime, failedSourceIds) {
+  const failedSources = failedSourceIds || new Set()
   const toCreate = []
   const toUpdate = []
   const toDelete = []
@@ -386,12 +400,22 @@ function categorizeChanges(syncedEventsMap, sourceEventsMap, startTime, endTime)
   })
 
   // Find deleted events
+  let keptFromFailedSources = 0
   syncedEventsMap.forEach((syncedData, sourceEventKey) => {
     if (!sourceEventsMap.has(sourceEventKey)) {
+      if (failedSources.has(syncedData.sourceCalendarId)) {
+        // Source could not be read: absence proves nothing, keep the event
+        keptFromFailedSources++
+        return
+      }
       // Event was deleted from source
       toDelete.push(syncedData.busyTimeEventId)
     }
   })
+
+  if (keptFromFailedSources > 0) {
+    console.log(`Kept ${keptFromFailedSources} event(s) from source calendars that failed to load`)
+  }
 
   return { toCreate, toUpdate, toDelete, toSkip }
 }
@@ -404,14 +428,19 @@ function categorizeChanges(syncedEventsMap, sourceEventsMap, startTime, endTime)
 function executeSmartSync(startTime, endTime) {
   // Fetch both sides
   const syncedEventsMap = fetchSyncedEvents(startTime, endTime)
-  const sourceEventsMap = fetchSourceEvents(startTime, endTime)
+  const { sourceEventsMap, failedSourceIds } = fetchSourceEvents(startTime, endTime)
+
+  if (failedSourceIds.size > 0) {
+    console.log(`${failedSourceIds.size} source calendar(s) failed to load; their events are kept, not deleted`)
+  }
 
   // Categorize
   const { toCreate, toUpdate, toDelete, toSkip } = categorizeChanges(
     syncedEventsMap,
     sourceEventsMap,
     startTime,
-    endTime
+    endTime,
+    failedSourceIds
   )
 
   console.log(`Analysis: ${toCreate.length} create, ${toUpdate.length} update, ${toDelete.length} delete, ${toSkip.length} skip`)

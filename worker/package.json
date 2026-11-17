@@ -1,0 +1,37 @@
+{
+  "name": "icloud-busy-feed",
+  "version": "1.0.0",
+  "description": "Read-only Cloudflare Worker that turns iCloud CalDAV calendars into busy intervals for Apps Script",
+  "author": "Alex Samson (https://saalse.com)",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@12.2.2",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test \"test/*.test.js\"",
+    "bench": "node test/bench.mjs",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "ical.js": "2.2.1",
+    "tsdav": "2.5.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.2"
+  },
+  "license": "MIT",
+  "cloudflare": {
+    "bindings": {
+      "ICLOUD_APPLE_ID": {
+        "description": "Your Apple ID (the email you sign in to iCloud with)."
+      },
+      "ICLOUD_APP_PASSWORD": {
+        "description": "An app-specific password made for this Worker only: [account.apple.com](https://account.apple.com) → Sign-In and Security → App-Specific Passwords. Not your Apple ID password."
+      },
+      "FEED_TOKEN": {
+        "description": "The feed token that setupICloud created in your Apps Script project: Project Settings → Script Properties → ICLOUD_FEED_TOKEN. Paste it exactly."
+      }
+    }
+  }
+}
