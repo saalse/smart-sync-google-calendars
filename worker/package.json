@@ -2,6 +2,7 @@
   "name": "icloud-busy-feed",
   "version": "1.0.0",
   "description": "Read-only Cloudflare Worker that turns iCloud CalDAV calendars into busy intervals for Apps Script",
+  "author": "Alex Samson (https://saalse.com)",
   "private": true,
   "type": "module",
   "packageManager": "npm@12.2.2",

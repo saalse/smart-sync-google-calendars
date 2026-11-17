@@ -155,3 +155,7 @@ Never put the Apple ID, the passwords or the token into the repo or a shared fil
 | `iCloud: FAILED (http …, not JSON)` | Cloudflare error page, e.g. error 1102 (CPU limit exceeded) | if regular: step 8 |
 | `requested window is outside the iCloud horizon` | the caller asked only for dates beyond `ICLOUD_DAYS_AHEAD` | nothing to fix |
 | `iCloud check: backing off …` | a read failed less than 15 minutes ago | wait, or fix the cause above |
+
+---
+
+Author: [Alex Samson](https://saalse.com). Design: [`icloud-spec.md`](./icloud-spec.md).

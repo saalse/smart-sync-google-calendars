@@ -136,3 +136,7 @@ request logs one line: path, status, per-calendar counts or error codes, cache h
 value is wall time spent waiting on iCloud: the Workers clock does not advance during CPU work, so CPU time is
 not in it. The logs never contain the token, the Apple ID or password, calendar names, event text, UIDs or
 times.
+
+## Author
+
+[Alex Samson](https://saalse.com). Part of [smart-sync-google-calendars](https://github.com/saalse/smart-sync-google-calendars).

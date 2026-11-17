@@ -1,6 +1,7 @@
 # iCloud busy time → proxy calendar: specification
 
 Status: built (`worker/`, `scripts/ICloudSource.gs`). Setup steps: [`icloud-setup.md`](./icloud-setup.md).
+Author: [Alex Samson](https://saalse.com).
 
 ## 1. Goal and rules
 
