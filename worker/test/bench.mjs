@@ -1,4 +1,4 @@
-// CPU benchmark for the Worker's request paths (docs/icloud-spec.md §12, §17).
+// CPU benchmark for the Worker's request paths (docs/icloud-spec.md §11; results in README.md "Plan and CPU").
 // Runs the real handler against the in-memory iCloud mock: XML parsing (tsdav/xml-js) + ICS expansion (ical.js).
 // Workers Free allows 10 ms CPU per HTTP request; an isolate tolerates infrequent overruns (Cloudflare limits docs).
 // Node's V8 is close to workerd's, but treat the numbers as an estimate: the real figure is the CPU time per

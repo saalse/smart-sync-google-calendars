@@ -1,4 +1,4 @@
-// iCloud busy time for the proxy calendar (docs/icloud-spec.md §7).
+// iCloud busy time for the proxy calendar (docs/icloud-spec.md §7; setup: docs/icloud-setup.md).
 //
 // setupICloud()                                 run by hand: creates the feed token, checks the Worker, creates
 //                                               the trigger. Safe to run again at any time (docs/icloud-setup.md).
