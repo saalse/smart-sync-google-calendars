@@ -39,7 +39,7 @@ const ICLOUD_MAX_DAYS_AHEAD = 366
 /**
  * Run by hand from the editor, as often as needed. Each run does what is still missing and says what comes next:
  * 1. creates the feed token in Script Properties (only if there is none; the value is never logged),
- * 2. once ICLOUD_FEED_URL is set: checks the Worker, lists the iCloud calendars, prints the next 7 days,
+ * 2. once ICLOUD_FEED_URL is set: checks the Worker, lists the iCloud calendars, prints every busy interval within ICLOUD_DAYS_AHEAD,
  * 3. once MIRROR_EXTRA_PROVIDERS has fetchICloudBusyIntervals: (re)creates the 5-minute checkICloudAndSync trigger.
  * Writes nothing to any calendar.
  */
@@ -92,7 +92,7 @@ function setupICloud() {
     }
   }
 
-  debugICloud(7)
+  debugICloud(cfg.daysAhead)
 
   if (!icloudProviderEnabled_()) {
     console.log("iCloud setup: reading iCloud works. To show it in the proxy calendar, add \"" + ICLOUD_PROVIDER_NAME +

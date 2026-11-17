@@ -61,7 +61,8 @@ it in, then `npx wrangler dev`.
 **Without a terminal:** the Deploy to Cloudflare button in the main README copies this folder into your GitHub,
 builds it with Workers Builds and asks for the three secrets (names from `.dev.vars.example`, help text from
 `cloudflare.bindings` in `package.json`). `packageManager` pins npm so that Workers Builds' `npm ci` accepts the
-lockfile. Step by step: [`docs/icloud-setup.md`](../docs/icloud-setup.md).
+lockfile. If the repository is already yours (owner or fork), import it in Workers Builds with root path `worker`
+instead, and add the secrets under Settings → Variables & Secrets. Step by step: [`docs/icloud-setup.md`](../docs/icloud-setup.md).
 
 **With wrangler:**
 

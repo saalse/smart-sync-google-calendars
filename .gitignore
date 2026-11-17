@@ -7,8 +7,9 @@ scripts/.clasp.json
 # Config file with sensitive calendar data
 scripts/Config.gs
 
-# Package lock
+# Package lock (the Worker keeps its own: Workers Builds runs npm ci from it)
 package-lock.json
+!worker/package-lock.json
 
 # Editor
 .vscode/

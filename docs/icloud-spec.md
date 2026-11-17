@@ -102,7 +102,7 @@ in detail. Tests prove each shortcut gives the same output as plain ical.js.
 2. Stops with the next step if `ICLOUD_FEED_URL` is empty.
 3. Calls `/calendars`, prints the names, explains common errors (token, missing secret, Apple sign-in, wrong URL).
 4. Stops if a configured name is missing, or if "all" means more than 10.
-5. Runs `debugICloud(7)`.
+5. Runs `debugICloud(ICLOUD_DAYS_AHEAD)`: every busy interval within the horizon.
 6. Only if `fetchICloudBusyIntervals` is in `MIRROR_EXTRA_PROVIDERS`: replaces any `checkICloudAndSync` trigger
    with one every 5 minutes.
 
@@ -159,7 +159,11 @@ Writes nothing.
 **Deploy button:** it copies the self-contained `worker/` folder into the user's GitHub, builds with Workers
 Builds (`npx wrangler deploy`), and asks for the secrets named in `.dev.vars.example`, with help text from
 `cloudflare.bindings` in `package.json`. `packageManager` pins npm so `npm ci` accepts the lockfile. The source repo
-must be public, and the button reads `main`. The user's copy doesn't get fixes on its own.
+must be public, and the button reads `main`. The user's copy doesn't get fixes on its own. After signing in,
+Cloudflare may drop the button's repository and show the generic import page; the guide says to reopen the link.
+Owners and forks skip the copy: Workers Builds imports their repository with root path `worker` (Worker name must
+match `wrangler.jsonc`), and the three secrets are added under Settings → Variables & Secrets. `worker/package-lock.json`
+is committed (the root `.gitignore` excludes other lockfiles) so builds use `npm ci`.
 
 ## 9. Contract with MirrorBusy
 
@@ -215,7 +219,7 @@ iCloud). It never logs the token, credentials, calendar names, event text, UIDs 
   and cancelled overrides, THISANDFUTURE, floating, unknown TZID, declined, window edges, the iteration cap,
   shortcut equivalence. HTTP: auth, errors, cache, `/calendars`, `*`, no secrets in logs. CalDAV runs against an
   in-memory iCloud mock.
-- **`tests/apps-script`** (40 tests). Provider mapping and failures, horizon, "all" mode, the check decision table,
+- **`tests/apps-script`** (41 tests). Provider mapping and failures, horizon, "all" mode, the check decision table,
   `setupICloud` paths, `node --check` on every `.gs`.
 
 `npm run bench` and `npm run check` (wrangler dry run) live in `worker/`.

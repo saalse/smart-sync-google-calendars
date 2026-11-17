@@ -72,7 +72,7 @@ test("success stores the version and the ok time", () => {
   const env = load({ now: NOW, config: CONFIG, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
   env.context.fetchICloudBusyIntervals(START, END)
   assert.equal(env.properties.getProperty("ICLOUD_LAST_VERSION"), VERSION)
-  assert.ok(Date.now() - Date.parse(env.properties.getProperty("ICLOUD_LAST_OK_AT")) < 5000)
+  assert.equal(env.properties.getProperty("ICLOUD_LAST_OK_AT"), new Date(NOW).toISOString())
   assert.equal(env.properties.getProperty("ICLOUD_LAST_FAILURE_AT"), null)
 })
 
@@ -456,4 +456,18 @@ test("setupICloud explains Worker errors", () => {
     assert.match(logText(env), hint)
     assert.equal(env.triggers.length, 0)
   }
+})
+
+test("setupICloud previews the whole horizon (ICLOUD_DAYS_AHEAD), not just a week", () => {
+  const env = load({
+    now: NOW,
+    config: { ...CONFIG, ICLOUD_FEED_URL: FEED, ICLOUD_DAYS_AHEAD: 30 },
+    properties: { ICLOUD_FEED_TOKEN: TOKEN },
+    responses: [CAL_LIST, VERSION_OK, { code: 200, body: busyBody() }],
+  })
+  env.context.setupICloud()
+  const busy = new URL(env.fetches[2].url)
+  // now + 30 days (inside the horizon, which ends at yesterday 00:00 UTC + 32 days).
+  assert.equal(busy.searchParams.get("end"), "2026-12-17T10:00:00.000Z")
+  assert.match(logText(env), /intervals in the next 30 days/)
 })
