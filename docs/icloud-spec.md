@@ -1,6 +1,10 @@
-# iCloud busy time → proxy calendar: specification
+---
+title: "iCloud busy time: specification"
+sidebarTitle: iCloud design
+description: "Design of the iCloud busy-time feed: Worker API, recurrence, safety rules and limits."
+---
 
-Status: built (`worker/`, `scripts/ICloudSource.gs`). Setup steps: [`icloud-setup.md`](./icloud-setup.md).
+Status: built (`worker/`, `scripts/ICloudSource.gs`). Setup steps: [iCloud setup](https://saalse-smart-sync-google-calendars.docs7.io/icloud-setup).
 Author: [Alex Samson](https://saalse.com).
 
 ## 1. Goal and rules
