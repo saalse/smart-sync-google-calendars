@@ -1,7 +1,7 @@
 # iCloud busy-time feed (Cloudflare Worker)
 
 A read-only Worker that logs in to iCloud CalDAV and returns **busy intervals only** (no titles, places or
-attendees) for the calendars you name. The Apps Script side (`scripts/ICloudSource.gs`) calls it; MirrorBusy
+attendees) for your calendars. The Apps Script side (`scripts/ICloudSource.gs`) calls it; MirrorBusy
 then writes plain `Busy` events into the proxy calendar.
 
 Apps Script can't send the `PROPFIND` and `REPORT` requests that CalDAV needs, so this Worker sits in between.
@@ -11,10 +11,12 @@ Full design: [`docs/icloud-spec.md`](../docs/icloud-spec.md). Owner setup, step 
 ## API
 
 Every request: `GET` with `Authorization: Bearer <FEED_TOKEN>`. Calendars are display names, repeated:
-`calendars=Calendar%20A&calendars=Calendar%20B` (1 to 10).
+`calendars=Calendar%20A&calendars=Calendar%20B` (1 to 10), or `calendars=*` for every event calendar (400 if there
+are more than 10).
 
 | Path | Query | Returns |
 |---|---|---|
+| `/calendars` | none | `{ ok, calendars: [{ name }] }`: event calendars' display names, sorted, no duplicates |
 | `/version` | `calendars` | `{ ok, version, calendars: [{ name, ok, error? }] }`; `version` changes whenever a selected calendar changes |
 | `/busy` | `calendars`, `start`, `end` (ISO instants, ≤ 400 days), `tz` (IANA, default `UTC`) | `{ ok, version, cache, calendars: [{ name, ok, error?, count }], intervals: [{ calendar, id, start, end, allDay }] }` |
 
@@ -56,6 +58,13 @@ it in, then `npx wrangler dev`.
 
 ## Deploy and secrets
 
+**Without a terminal:** the Deploy to Cloudflare button in the main README copies this folder into your GitHub,
+builds it with Workers Builds and asks for the three secrets (names from `.dev.vars.example`, help text from
+`cloudflare.bindings` in `package.json`). `packageManager` pins npm so that Workers Builds' `npm ci` accepts the
+lockfile. Step by step: [`docs/icloud-setup.md`](../docs/icloud-setup.md).
+
+**With wrangler:**
+
 ```bash
 npx wrangler login
 ```
@@ -83,7 +92,7 @@ npx wrangler secret put FEED_TOKEN
 |---|---|
 | `ICLOUD_APPLE_ID` | your Apple ID (email) |
 | `ICLOUD_APP_PASSWORD` | an app-specific password made only for this Worker (account.apple.com → Sign-In and Security) |
-| `FEED_TOKEN` | a random token, e.g. `openssl rand -base64 32`; the same value goes into the Script Property `ICLOUD_FEED_TOKEN` |
+| `FEED_TOKEN` | the `ICLOUD_FEED_TOKEN` Script Property that `setupICloud` creates (or your own random token, put into that property) |
 
 Until all three exist, the Worker answers `500 not_configured`.
 

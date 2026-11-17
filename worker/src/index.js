@@ -1,10 +1,12 @@
 // iCloud busy-time feed: a read-only Worker for the Apps Script side (docs/icloud-spec.md §3).
 //
+//   GET /calendars                                           → display names of the event calendars
 //   GET /version?calendars=A&calendars=B                     → ctag fingerprint of the selected calendars
 //   GET /busy?calendars=A&start=ISO&end=ISO[&tz=IANA]        → busy intervals, no event text
 //
-// Every request needs "Authorization: Bearer <FEED_TOKEN>". Secrets: ICLOUD_APPLE_ID, ICLOUD_APP_PASSWORD,
-// FEED_TOKEN (wrangler secret put). Optional var CALDAV_SERVER_URL exists only for tests.
+// calendars=* selects every event calendar (at most MAX_CALENDARS). Every request needs
+// "Authorization: Bearer <FEED_TOKEN>". Secrets: ICLOUD_APPLE_ID, ICLOUD_APP_PASSWORD, FEED_TOKEN (set in the
+// Deploy to Cloudflare form, the dashboard, or wrangler secret put). Optional var CALDAV_SERVER_URL is for tests.
 //
 // Logs never contain the Authorization header, credentials, calendar names, ICS text, UIDs or times.
 
@@ -55,10 +57,10 @@ async function route(request, url, env, ctx, deps, summary) {
   if (!(await isAuthorized(request.headers.get("Authorization"), env.FEED_TOKEN))) {
     return json(401, { ok: false, error: "unauthorized" })
   }
-  if (url.pathname !== "/version" && url.pathname !== "/busy") return json(404, { ok: false, error: "not_found" })
+  if (!["/calendars", "/version", "/busy"].includes(url.pathname)) return json(404, { ok: false, error: "not_found" })
   if (!env.ICLOUD_APPLE_ID || !env.ICLOUD_APP_PASSWORD) return json(500, { ok: false, error: "not_configured" })
 
-  const params = parseParams(url, url.pathname === "/busy")
+  const params = url.pathname === "/calendars" ? {} : parseParams(url, url.pathname === "/busy")
   if (params.error) return json(400, { ok: false, error: "bad_request", message: params.error })
 
   let discovered
@@ -75,6 +77,19 @@ async function route(request, url, env, ctx, deps, summary) {
     return json(502, { ok: false, error: code })
   }
 
+  const allNames = [...new Set(discovered.calendars.map((c) => c.displayName))].sort()
+  if (url.pathname === "/calendars") {
+    summary.calendars = allNames.length
+    return json(200, { ok: true, calendars: allNames.map((name) => ({ name })) })
+  }
+
+  if (params.all) {
+    const matching = discovered.calendars.length
+    if (matching > MAX_CALENDARS) {
+      return json(400, { ok: false, error: "bad_request", message: "more than " + MAX_CALENDARS + " calendars; name them" })
+    }
+    params.calendars = allNames
+  }
   const selected = selectCalendars(discovered.calendars, params.calendars)
   const version = await computeVersion(selected)
 
@@ -91,7 +106,7 @@ async function busy(url, env, ctx, deps, summary, params, discovered, selected, 
   const cache = deps.cache !== undefined ? deps.cache : defaultCache()
   let cacheKey = null
   if (cache && version) {
-    const hash = await sha256Hex(JSON.stringify([version, params.startMs, params.endMs, params.tz, [...params.calendars].sort()]))
+    const hash = await sha256Hex(JSON.stringify([version, params.startMs, params.endMs, params.tz, params.all ? ["*"] : [...params.calendars].sort()]))
     // Same origin as the Worker (Cloudflare's documented pattern). The path is never served: every request to the
     // Worker runs this code, which answers 401/404 for it.
     cacheKey = new URL("/__cache/busy/" + hash, url.origin).href
@@ -169,8 +184,10 @@ function parseParams(url, needsWindow) {
     if (name && !names.includes(name)) names.push(name)
   }
   if (names.length < 1) return { error: "calendars is required" }
+  if (names.includes("*") && names.length > 1) return { error: "calendars=* cannot be combined with names" }
   if (names.length > MAX_CALENDARS) return { error: "at most " + MAX_CALENDARS + " calendars" }
-  if (!needsWindow) return { calendars: names }
+  const all = names[0] === "*"
+  if (!needsWindow) return { calendars: names, all }
 
   const start = url.searchParams.get("start") || ""
   const end = url.searchParams.get("end") || ""
@@ -187,7 +204,7 @@ function parseParams(url, needsWindow) {
   } catch (e) {
     return { error: "tz must be an IANA time zone" }
   }
-  return { calendars: names, startMs, endMs, tz }
+  return { calendars: names, all, startMs, endMs, tz }
 }
 
 // Constant-time token check: hash both values so lengths match, then compare digests

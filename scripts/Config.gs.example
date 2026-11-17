@@ -29,19 +29,23 @@ const SEARCH_CHARACTER = "\u200B"
 
 // --- iCloud busy time for the proxy calendar (optional, see docs/icloud-setup.md) ---
 
-// iCloud calendars to read, by their display name exactly as shown in Apple Calendar (1 to 10 names).
-// Leave empty to turn iCloud off.
+// The Worker's address, printed by Cloudflare after "Deploy to Cloudflare", e.g.
+// "https://icloud-busy-feed.<your-subdomain>.workers.dev" (no trailing slash). Leave empty to turn iCloud off.
+// The token is not set here: setupICloud keeps it in Script Properties.
+const ICLOUD_FEED_URL = ""
+
+// iCloud calendars to read, by their display name exactly as shown in Apple Calendar (up to 10 names).
+// Leave empty to read all of them (setupICloud prints the names).
 const ICLOUD_CALENDARS = [
   // "Calendar A",
   // "Calendar B",
 ]
 
-// Time zone for iCloud events that have no time zone of their own ("floating" times). IANA name.
 const ICLOUD_FLOATING_TIMEZONE = "Europe/Berlin"
 
 // How many days ahead iCloud busy time is read (1 to 366). The past is never read. Keep it short: booking pages
 // rarely look further, and a short window keeps the Worker within the Cloudflare Free plan's CPU limit.
 const ICLOUD_DAYS_AHEAD = 30
 
-// The Worker URL and token are NOT set here: they go in Script Properties (ICLOUD_FEED_URL, ICLOUD_FEED_TOKEN).
-// iCloud reaches the proxy only through MirrorBusy: add "fetchICloudBusyIntervals" to its MIRROR_EXTRA_PROVIDERS.
+// iCloud reaches the proxy only through MirrorBusy: add "fetchICloudBusyIntervals" to its MIRROR_EXTRA_PROVIDERS,
+// then run setupICloud once more to create the trigger.

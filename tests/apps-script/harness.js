@@ -53,6 +53,7 @@ function formatDate(date, timeZone, pattern) {
  * @param {object} [opts.properties]  initial Script Properties
  * @param {Array}  [opts.responses]   queue: { code, body } or an Error to throw
  * @param {number} [opts.now]         fixed clock (ms) for ICloudSource's icloudNow_()
+ * @param {string[]} [opts.triggers]  handler names of existing project triggers
  */
 function load(opts = {}) {
   const properties = new MockProperties(opts.properties)
@@ -60,6 +61,21 @@ function load(opts = {}) {
   const logs = []
   const responses = (opts.responses || []).slice()
   const syncCalls = []
+  const triggers = (opts.triggers || []).map((name) => ({ name, every: null }))
+  const ScriptApp = {
+    getProjectTriggers: () => triggers.map((t) => ({ getHandlerFunction: () => t.name, _t: t })),
+    deleteTrigger: (wrapped) => { const i = triggers.indexOf(wrapped._t); if (i >= 0) triggers.splice(i, 1) },
+    newTrigger: (name) => ({
+      timeBased: () => ({
+        everyMinutes: (n) => ({
+          create: () => {
+            if (![1, 5, 10, 15, 30].includes(n)) throw new Error("everyMinutes: invalid " + n)
+            triggers.push({ name, every: n })
+          },
+        }),
+      }),
+    }),
+  }
 
   const context = {
     console: {
@@ -77,7 +93,8 @@ function load(opts = {}) {
         return httpResponse(next.code, next.body)
       },
     },
-    Utilities: { formatDate },
+    Utilities: { formatDate, getUuid: () => require("node:crypto").randomUUID() },
+    ScriptApp,
     Session: { getScriptTimeZone: () => "UTC" },
     SyncCalendarsIntoOne: () => syncCalls.push(Date.now()),
   }
@@ -88,7 +105,7 @@ function load(opts = {}) {
   vm.runInContext(fs.readFileSync(path.join(SCRIPTS, "ICloudSource.gs"), "utf8"), context, { filename: "ICloudSource.gs" })
   if (typeof opts.now === "number") context.icloudNow_ = () => opts.now
 
-  return { context, properties, fetches, logs, responses, syncCalls }
+  return { context, properties, fetches, logs, responses, syncCalls, triggers }
 }
 
 module.exports = { load, SCRIPTS }

@@ -1,16 +1,22 @@
 // iCloud busy time for the proxy calendar (docs/icloud-spec.md §7).
 //
+// setupICloud()                                 run by hand: creates the feed token, checks the Worker, creates
+//                                               the trigger. Safe to run again at any time (docs/icloud-setup.md).
 // fetchICloudBusyIntervals(startTime, endTime)  MirrorBusy provider: reads the iCloud Worker's /busy feed.
 // checkICloudAndSync()                          5-minute trigger: runs SyncCalendarsIntoOne when iCloud changed.
 // debugICloud(days)                             run by hand: prints status and intervals, writes nothing.
 //
-// Config.gs:          ICLOUD_CALENDARS, ICLOUD_FLOATING_TIMEZONE, ICLOUD_DAYS_AHEAD, MIRROR_EXTRA_PROVIDERS
-// Script Properties:  ICLOUD_FEED_URL, ICLOUD_FEED_TOKEN (set by the owner)
+// Config.gs:          ICLOUD_FEED_URL, ICLOUD_CALENDARS (empty = all), ICLOUD_FLOATING_TIMEZONE, ICLOUD_DAYS_AHEAD,
+//                     MIRROR_EXTRA_PROVIDERS
+// Script Properties:  ICLOUD_FEED_TOKEN (created by setupICloud), ICLOUD_FEED_URL (older setups; Config.gs wins)
 //                     ICLOUD_LAST_VERSION, ICLOUD_LAST_OK_AT, ICLOUD_LAST_FAILURE_AT, ICLOUD_LAST_RUN_AT (set here)
 //
 // The token is never logged. Calendar names appear only in this project's own execution log.
 
 const ICLOUD_PROVIDER_NAME = "fetchICloudBusyIntervals"
+const ICLOUD_TRIGGER_FUNCTION = "checkICloudAndSync"
+const ICLOUD_TRIGGER_MINUTES = 5
+const ICLOUD_ALL_CALENDARS = "*"
 const ICLOUD_PROP = {
   FEED_URL: "ICLOUD_FEED_URL",
   FEED_TOKEN: "ICLOUD_FEED_TOKEN",
@@ -28,6 +34,73 @@ const ICLOUD_ALARM_MS = 24 * 60 * 60 * 1000
 const ICLOUD_DAY_MS = 24 * 60 * 60 * 1000
 const ICLOUD_DEFAULT_DAYS_AHEAD = 30
 const ICLOUD_MAX_DAYS_AHEAD = 366
+
+/**
+ * Run by hand from the editor, as often as needed. Each run does what is still missing and says what comes next:
+ * 1. creates the feed token in Script Properties (only if there is none; the value is never logged),
+ * 2. once ICLOUD_FEED_URL is set: checks the Worker, lists the iCloud calendars, prints the next 7 days,
+ * 3. once MIRROR_EXTRA_PROVIDERS has fetchICloudBusyIntervals: (re)creates the 5-minute checkICloudAndSync trigger.
+ * Writes nothing to any calendar.
+ */
+function setupICloud() {
+  const props = PropertiesService.getScriptProperties()
+
+  if (!String(props.getProperty(ICLOUD_PROP.FEED_TOKEN) || "").trim()) {
+    props.setProperty(ICLOUD_PROP.FEED_TOKEN, icloudNewToken_())
+    console.log("iCloud setup: created the feed token. Copy it from Project Settings → Script Properties → " +
+      ICLOUD_PROP.FEED_TOKEN + " into the FEED_TOKEN field when you deploy the Worker.")
+  } else {
+    console.log("iCloud setup: feed token is set (Project Settings → Script Properties → " + ICLOUD_PROP.FEED_TOKEN + ").")
+  }
+
+  if (!icloudFeedUrl_()) {
+    console.log("iCloud setup: next, deploy the Worker with the Deploy to Cloudflare button (docs/icloud-setup.md), " +
+      "put its workers.dev URL into ICLOUD_FEED_URL in Config.gs, and run setupICloud again.")
+    return
+  }
+
+  const cfg = icloudConfig_()
+  if (cfg.error) {
+    console.warn("iCloud setup: " + cfg.error)
+    return
+  }
+
+  const listed = icloudGet_(cfg, "/calendars", ICLOUD_VERSION_TIMEOUT_SECONDS)
+  if (listed.error) {
+    console.warn("iCloud setup: the Worker did not answer (" + listed.error + "). " + icloudSetupHint_(listed.error))
+    return
+  }
+  const names = (Array.isArray(listed.body.calendars) ? listed.body.calendars : [])
+    .map(function (c) { return c && typeof c.name === "string" ? c.name : null })
+    .filter(function (n) { return n !== null })
+  console.log("iCloud setup: the Worker works. iCloud calendars: " + (names.length ? names.join(", ") : "(none)"))
+
+  if (cfg.all) {
+    if (names.length > ICLOUD_MAX_CALENDARS) {
+      console.warn("iCloud setup: more than " + ICLOUD_MAX_CALENDARS + " calendars. Put the ones that matter into " +
+        "ICLOUD_CALENDARS in Config.gs, copied from the list above, and run setupICloud again.")
+      return
+    }
+    console.log("iCloud setup: ICLOUD_CALENDARS is empty, so all of them are read.")
+  } else {
+    const missing = cfg.calendars.filter(function (n) { return names.indexOf(n) === -1 })
+    if (missing.length) {
+      console.warn("iCloud setup: not found in iCloud: " + missing.join(", ") + ". Copy the names from the list " +
+        "above into ICLOUD_CALENDARS (case and spaces count), or leave it empty to read all calendars.")
+      return
+    }
+  }
+
+  debugICloud(7)
+
+  if (!icloudProviderEnabled_()) {
+    console.log("iCloud setup: reading iCloud works. To show it in the proxy calendar, add \"" + ICLOUD_PROVIDER_NAME +
+      "\" to MIRROR_EXTRA_PROVIDERS in Config.gs and run setupICloud again; that also creates the trigger.")
+    return
+  }
+  icloudInstallTrigger_()
+  console.log("iCloud setup: done. " + ICLOUD_TRIGGER_FUNCTION + " now runs every " + ICLOUD_TRIGGER_MINUTES + " minutes.")
+}
 
 /**
  * MirrorBusy provider. Never throws: every problem becomes ok: false (MirrorBusy then skips all deletions).
@@ -69,7 +142,7 @@ function fetchICloudBusyIntervals(startTime, endTime, options) {
 }
 
 /**
- * Time-driven trigger, every 5 minutes (create it in the Apps Script UI).
+ * Time-driven trigger, every 5 minutes (setupICloud creates it).
  * Runs the full sync when the iCloud calendars changed, and at least once a day. Backs off for 15 minutes after a
  * failed iCloud read. Throws (so Google emails the owner) when iCloud has not been read successfully for 24 h,
  * because while iCloud fails MirrorBusy deletes nothing from the proxy at all.
@@ -126,7 +199,7 @@ function debugICloud(days) {
   const props = PropertiesService.getScriptProperties()
   const cfg = icloudConfig_()
 
-  console.log("iCloud debug: feed URL " + (props.getProperty(ICLOUD_PROP.FEED_URL) ? "set" : "missing") +
+  console.log("iCloud debug: feed URL " + (icloudFeedUrl_() ? "set" : "missing") +
     ", token " + (props.getProperty(ICLOUD_PROP.FEED_TOKEN) ? "set" : "missing") +
     ", provider " + (icloudProviderEnabled_() ? "enabled" : "not in MIRROR_EXTRA_PROVIDERS"))
   for (const key of [ICLOUD_PROP.LAST_VERSION, ICLOUD_PROP.LAST_OK_AT, ICLOUD_PROP.LAST_FAILURE_AT, ICLOUD_PROP.LAST_RUN_AT]) {
@@ -184,12 +257,17 @@ function icloudReadBusy_(startTime, endTime) {
   const reasons = []
   if (body.ok !== true) reasons.push("feed ok=false")
 
-  // Every configured calendar must be present and ok.
+  // Every configured calendar must be present and ok. With ICLOUD_CALENDARS empty ("all"), the feed's list is the
+  // configured set.
   const byName = {}
+  const feedNames = []
   for (const c of Array.isArray(body.calendars) ? body.calendars : []) {
-    if (c && typeof c.name === "string") byName[c.name] = c
+    if (c && typeof c.name === "string") {
+      byName[c.name] = c
+      feedNames.push(c.name)
+    }
   }
-  const calendars = cfg.calendars.map(function (name) {
+  const calendars = (cfg.all ? feedNames : cfg.calendars).map(function (name) {
     const c = byName[name]
     if (!c) return { name: name, ok: false, error: "missing", count: 0 }
     return { name: name, ok: c.ok === true, error: c.ok === true ? undefined : String(c.error || "failed"), count: Number(c.count) || 0 }
@@ -257,7 +335,9 @@ function icloudGet_(cfg, pathAndQuery, timeoutSeconds) {
   } catch (e) {
     return { error: "http " + code + ", not JSON" }
   }
-  if (code !== 200) return { error: "http " + code + (body && body.error ? " " + body.error : "") }
+  if (code !== 200) {
+    return { error: "http " + code + (body && body.error ? " " + body.error : "") + (body && typeof body.message === "string" ? ": " + body.message : "") }
+  }
   if (!body || typeof body !== "object") return { error: "http 200, empty body" }
   return { body: body }
 }
@@ -299,14 +379,15 @@ function icloudConfig_() {
   const calendars = typeof ICLOUD_CALENDARS !== "undefined" && Array.isArray(ICLOUD_CALENDARS)
     ? ICLOUD_CALENDARS.map(function (n) { return String(n).trim() }).filter(function (n) { return n })
     : []
-  if (!calendars.length) return { error: "ICLOUD_CALENDARS is empty" }
+  if (calendars.indexOf(ICLOUD_ALL_CALENDARS) !== -1) return { error: "ICLOUD_CALENDARS: leave it empty to read all calendars, not \"*\"" }
   if (calendars.length > ICLOUD_MAX_CALENDARS) return { error: "ICLOUD_CALENDARS has more than " + ICLOUD_MAX_CALENDARS + " names" }
+  const all = calendars.length === 0
 
   const props = PropertiesService.getScriptProperties()
-  const url = String(props.getProperty(ICLOUD_PROP.FEED_URL) || "").trim().replace(/\/+$/, "")
+  const url = icloudFeedUrl_()
   const token = String(props.getProperty(ICLOUD_PROP.FEED_TOKEN) || "").trim()
-  if (!url) return { error: ICLOUD_PROP.FEED_URL + " is not set" }
-  if (!/^https:\/\/[^/?#]+(\/[^?#]*)?$/.test(url)) return { error: ICLOUD_PROP.FEED_URL + " must be an https URL with no query" }
+  if (!url) return { error: "ICLOUD_FEED_URL is not set in Config.gs" }
+  if (!/^https:\/\/[^/?#]+(\/[^?#]*)?$/.test(url)) return { error: "ICLOUD_FEED_URL must be an https URL with no query" }
   if (!token) return { error: ICLOUD_PROP.FEED_TOKEN + " is not set" }
 
   const tz = typeof ICLOUD_FLOATING_TIMEZONE !== "undefined" && ICLOUD_FLOATING_TIMEZONE ? String(ICLOUD_FLOATING_TIMEZONE) : "UTC"
@@ -318,7 +399,36 @@ function icloudConfig_() {
       return { error: "ICLOUD_DAYS_AHEAD must be a whole number from 1 to " + ICLOUD_MAX_DAYS_AHEAD }
     }
   }
-  return { calendars: calendars, url: url, token: token, tz: tz, daysAhead: daysAhead }
+  return { calendars: all ? [ICLOUD_ALL_CALENDARS] : calendars, all: all, url: url, token: token, tz: tz, daysAhead: daysAhead }
+}
+
+// Config.gs first; the Script Property is kept for setups made before ICLOUD_FEED_URL moved to Config.gs.
+function icloudFeedUrl_() {
+  const fromConfig = typeof ICLOUD_FEED_URL !== "undefined" && ICLOUD_FEED_URL ? String(ICLOUD_FEED_URL) : ""
+  const raw = fromConfig.trim() || String(PropertiesService.getScriptProperties().getProperty(ICLOUD_PROP.FEED_URL) || "").trim()
+  return raw.replace(/\/+$/, "")
+}
+
+// 64 hex characters from two random v4 UUIDs (2 × 122 random bits).
+function icloudNewToken_() {
+  return (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "")
+}
+
+// Replaces every checkICloudAndSync trigger with one time-driven trigger, so running setup twice leaves one.
+function icloudInstallTrigger_() {
+  for (const t of ScriptApp.getProjectTriggers()) {
+    if (t.getHandlerFunction() === ICLOUD_TRIGGER_FUNCTION) ScriptApp.deleteTrigger(t)
+  }
+  ScriptApp.newTrigger(ICLOUD_TRIGGER_FUNCTION).timeBased().everyMinutes(ICLOUD_TRIGGER_MINUTES).create()
+}
+
+// What to do about a failed Worker call during setup.
+function icloudSetupHint_(error) {
+  if (/^http 401/.test(error)) return "The token differs: put ICLOUD_FEED_TOKEN from Script Properties into the Worker's FEED_TOKEN (Cloudflare → Workers → your Worker → Settings → Variables & Secrets)."
+  if (/not_configured/.test(error)) return "A Worker secret is missing: check ICLOUD_APPLE_ID, ICLOUD_APP_PASSWORD and FEED_TOKEN in Cloudflare → Workers → your Worker → Settings → Variables & Secrets."
+  if (/upstream_auth/.test(error)) return "Apple rejected the sign-in: check the Apple ID and create a new app-specific password, then update ICLOUD_APP_PASSWORD in Cloudflare."
+  if (/^http 404/.test(error)) return "Check ICLOUD_FEED_URL: it should be the Worker's address only, like https://icloud-busy-feed.<name>.workers.dev."
+  return "Check ICLOUD_FEED_URL and try again in a minute."
 }
 
 // [yesterday 00:00 UTC, + daysAhead + 2 days): covers all of "today" in any time zone and at least daysAhead

@@ -1,7 +1,8 @@
 # iCloud busy time → proxy calendar: specification
 
 Status: approved by the owner; phase 2 built (code in `worker/` and `scripts/ICloudSource.gs`). §17 lists what
-changed during the build.
+changed during the build; §18 the browser-only setup, which supersedes the setup details in §3, §8 and §15 where
+they differ.
 
 ## 1. Goal and scope
 
@@ -306,7 +307,8 @@ The proxy-side debug helper (`debugProxyDay`) belongs to MirrorBusy.
 
 | Key | Example | Meaning |
 |---|---|---|
-| `ICLOUD_CALENDARS` | `["Calendar A", "Calendar B"]` | iCloud display names to read |
+| `ICLOUD_FEED_URL` | `"https://icloud-busy-feed.<sub>.workers.dev"` | Worker base URL, no token (§18; empty = iCloud off) |
+| `ICLOUD_CALENDARS` | `["Calendar A", "Calendar B"]` | iCloud display names to read; empty = all (§18) |
 | `ICLOUD_FLOATING_TIMEZONE` | `"Europe/Berlin"` | zone for floating times |
 | `ICLOUD_DAYS_AHEAD` | `30` | days ahead to read, 1–366 (phase 2) |
 | `MIRROR_EXTRA_PROVIDERS` | `["fetchICloudBusyIntervals"]` | MirrorBusy's key; enables iCloud in the proxy |
@@ -317,8 +319,8 @@ Rule for docs: never add the proxy's primary calendar to `CALENDARS_TO_MERGE`, o
 
 | Property | Set by | Meaning |
 |---|---|---|
-| `ICLOUD_FEED_URL` | owner | Worker base URL, no token, no trailing slash |
-| `ICLOUD_FEED_TOKEN` | owner | same value as the Worker's `FEED_TOKEN` |
+| `ICLOUD_FEED_URL` | owner | older setups only; `Config.gs` wins (§18) |
+| `ICLOUD_FEED_TOKEN` | `setupICloud` | same value as the Worker's `FEED_TOKEN` |
 | `ICLOUD_LAST_VERSION` | code | version from the last fully successful read |
 | `ICLOUD_LAST_OK_AT` | code | ISO time of the last fully successful read |
 | `ICLOUD_LAST_FAILURE_AT` | code | ISO time of the last failed read |
@@ -590,7 +592,7 @@ are pinned exactly in `package.json`.
 11. **Horizon** in `fetchICloudBusyIntervals` (§7.1) and `coverage` in the provider result (§9), from the owner's
     decision to stay on Free.
 
-## 18. Browser-only setup (planned, owner's decision 2026-11-17)
+## 18. Browser-only setup (owner's decision 2026-11-17; built)
 
 The owner wants a setup that people without a terminal can follow, matching
 [`setup-ui-based.md`](./setup-ui-based.md). The Worker stays, so only "Busy" leaves iCloud. Node, npm, wrangler,
@@ -617,6 +619,12 @@ openssl and clasp drop out of the owner's path; `worker/README.md` keeps the CLI
   `checkICloudAndSync` trigger). `ICLOUD_FEED_URL` moves from Script Properties to `Config.gs` (it holds no
   secret; the token stays in Script Properties). `appsscript.json` gets the `script.scriptapp` scope.
 - **Docs:** `icloud-setup.md` is rewritten around §18.1; README gets the button.
+
+As built: `setupICloud` prints the calendar list and stops if a configured name is missing; with "all" and more
+than 10 calendars it asks to name them; it creates the trigger only once `fetchICloudBusyIntervals` is in
+`MIRROR_EXTRA_PROVIDERS` (otherwise `checkICloudAndSync` would only log warnings). The token is 64 hex characters
+from two `Utilities.getUuid()` values. Worker error messages (`message` in a 400) now reach the Apps Script log.
+Tests: 40 Apps Script, 58 Worker.
 
 ### 18.3 Checked against the docs (context7 and Cloudflare docs, 2026-11-17)
 

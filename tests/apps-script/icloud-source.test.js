@@ -140,8 +140,8 @@ test("dryRun writes no properties, on success or failure", () => {
 
 test("not configured → ok false without any fetch", () => {
   const cases = [
-    { config: { ...CONFIG, ICLOUD_CALENDARS: [] }, properties: PROPS },
-    { config: { MIRROR_EXTRA_PROVIDERS: CONFIG.MIRROR_EXTRA_PROVIDERS }, properties: PROPS },
+    { config: { ...CONFIG, ICLOUD_CALENDARS: ["*"] }, properties: PROPS },
+    { config: { ...CONFIG, ICLOUD_CALENDARS: Array.from({ length: 11 }, (_, i) => "C" + i) }, properties: PROPS },
     { config: CONFIG, properties: { ICLOUD_FEED_TOKEN: TOKEN } },
     { config: CONFIG, properties: { ICLOUD_FEED_URL: FEED } },
     { config: CONFIG, properties: { ...PROPS, ICLOUD_FEED_URL: "http://feed.example.invalid" } },
@@ -333,5 +333,127 @@ test("horizon: invalid ICLOUD_DAYS_AHEAD → not configured", () => {
     assert.equal(result.ok, false)
     assert.match(result.reason, /ICLOUD_DAYS_AHEAD/)
     assert.equal(env.fetches.length, 0)
+  }
+})
+
+// --- all calendars, Config.gs URL ----------------------------------------------------------------------------------
+
+test("ICLOUD_CALENDARS empty or missing → calendars=*, and the feed's list is the configured set", () => {
+  for (const config of [{ ...CONFIG, ICLOUD_CALENDARS: [] }, { MIRROR_EXTRA_PROVIDERS: CONFIG.MIRROR_EXTRA_PROVIDERS }]) {
+    const env = load({ now: NOW, config, properties: PROPS, responses: [{ code: 200, body: busyBody() }] })
+    const result = env.context.fetchICloudBusyIntervals(START, END)
+    assert.match(env.fetches[0].url, /\/busy\?calendars=\*&start=/)
+    assert.equal(result.ok, true)
+    assert.deepEqual([...result.calendars.map((c) => c.name)], ["Calendar A", "Calendar B + More"])
+    assert.equal(result.intervals.length, 2)
+  }
+})
+
+test("all calendars: a failed calendar in the feed still makes the read fail", () => {
+  const body = busyBody({ ok: false, calendars: [{ name: "Calendar A", ok: true, count: 1 }, { name: "Calendar B + More", ok: false, error: "parse_failed", count: 0 }] })
+  const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_CALENDARS: [] }, properties: PROPS, responses: [{ code: 200, body }] })
+  const result = env.context.fetchICloudBusyIntervals(START, END)
+  assert.equal(result.ok, false)
+  assert.equal(result.intervals.length, 1)
+})
+
+test("ICLOUD_FEED_URL in Config.gs wins over the Script Property; a 400 message reaches the log", () => {
+  const env = load({
+    now: NOW,
+    config: { ...CONFIG, ICLOUD_FEED_URL: "https://config.example.invalid/" },
+    properties: PROPS,
+    responses: [{ code: 400, body: { ok: false, error: "bad_request", message: "more than 10 calendars; name them" } }],
+  })
+  const result = env.context.fetchICloudBusyIntervals(START, END)
+  assert.match(env.fetches[0].url, /^https:\/\/config\.example\.invalid\/busy\?/)
+  assert.equal(result.reason, "http 400 bad_request: more than 10 calendars; name them")
+})
+
+// --- setupICloud -------------------------------------------------------------------------------------------------
+
+const CAL_LIST = { code: 200, body: { ok: true, calendars: [{ name: "Calendar A" }, { name: "Calendar B + More" }, { name: "Family" }] } }
+const VERSION_OK = { code: 200, body: { ok: true, version: VERSION, calendars: [{ name: "Calendar A", ok: true }, { name: "Calendar B + More", ok: true }] } }
+const logText = (env) => env.logs.map((l) => l[1]).join("\n")
+
+test("setupICloud, first run: creates a 64-hex token, never logs it, fetches nothing, says what is next", () => {
+  const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_FEED_URL: "" } })
+  env.context.setupICloud()
+  const token = env.properties.getProperty("ICLOUD_FEED_TOKEN")
+  assert.match(token, /^[0-9a-f]{64}$/)
+  assert.equal(env.fetches.length, 0)
+  assert.ok(!logText(env).includes(token))
+  assert.match(logText(env), /created the feed token/)
+  assert.match(logText(env), /Deploy to Cloudflare/)
+  assert.equal(env.triggers.length, 0)
+})
+
+test("setupICloud keeps an existing token", () => {
+  const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_FEED_URL: "" }, properties: { ICLOUD_FEED_TOKEN: TOKEN } })
+  env.context.setupICloud()
+  assert.equal(env.properties.getProperty("ICLOUD_FEED_TOKEN"), TOKEN)
+  assert.ok(!env.properties.writes.includes("ICLOUD_FEED_TOKEN"))
+})
+
+test("setupICloud, everything set: lists calendars, previews, writes no state, creates one 5-minute trigger", () => {
+  const env = load({
+    now: NOW,
+    config: { ...CONFIG, ICLOUD_FEED_URL: FEED },
+    properties: { ICLOUD_FEED_TOKEN: TOKEN },
+    triggers: ["checkICloudAndSync", "SyncCalendarsIntoOne", "checkICloudAndSync"],
+    responses: [CAL_LIST, VERSION_OK, { code: 200, body: busyBody() }],
+  })
+  env.context.setupICloud()
+  assert.deepEqual(env.fetches.map((f) => f.url.replace(FEED, "").split("?")[0]), ["/calendars", "/version", "/busy"])
+  assert.match(logText(env), /iCloud calendars: Calendar A, Calendar B \+ More, Family/)
+  assert.deepEqual(JSON.parse(JSON.stringify(env.triggers)), [{ name: "SyncCalendarsIntoOne", every: null }, { name: "checkICloudAndSync", every: 5 }])
+  assert.deepEqual(env.properties.writes, [])
+  assert.ok(!logText(env).includes(TOKEN))
+})
+
+test("setupICloud without the provider in MIRROR_EXTRA_PROVIDERS: checks everything, creates no trigger", () => {
+  const env = load({
+    now: NOW,
+    config: { ICLOUD_CALENDARS: CONFIG.ICLOUD_CALENDARS, ICLOUD_FEED_URL: FEED },
+    properties: { ICLOUD_FEED_TOKEN: TOKEN },
+    responses: [CAL_LIST, VERSION_OK, { code: 200, body: busyBody() }],
+  })
+  env.context.setupICloud()
+  assert.equal(env.triggers.length, 0)
+  assert.match(logText(env), /add "fetchICloudBusyIntervals" to MIRROR_EXTRA_PROVIDERS/)
+})
+
+test("setupICloud: a calendar name that iCloud doesn't have stops before the preview", () => {
+  const env = load({
+    now: NOW,
+    config: { ...CONFIG, ICLOUD_CALENDARS: ["Calendar A", "calendar b"], ICLOUD_FEED_URL: FEED },
+    properties: { ICLOUD_FEED_TOKEN: TOKEN },
+    responses: [CAL_LIST],
+  })
+  env.context.setupICloud()
+  assert.equal(env.fetches.length, 1)
+  assert.match(logText(env), /not found in iCloud: calendar b/)
+  assert.equal(env.triggers.length, 0)
+})
+
+test("setupICloud: all calendars but more than 10 → asks to name them", () => {
+  const many = { code: 200, body: { ok: true, calendars: Array.from({ length: 11 }, (_, i) => ({ name: "C" + i })) } }
+  const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_CALENDARS: [], ICLOUD_FEED_URL: FEED }, properties: { ICLOUD_FEED_TOKEN: TOKEN }, responses: [many] })
+  env.context.setupICloud()
+  assert.equal(env.fetches.length, 1)
+  assert.match(logText(env), /more than 10 calendars/)
+})
+
+test("setupICloud explains Worker errors", () => {
+  const cases = [
+    [{ code: 401, body: { ok: false, error: "unauthorized" } }, /token differs/],
+    [{ code: 500, body: { ok: false, error: "not_configured" } }, /secret is missing/],
+    [{ code: 502, body: { ok: false, error: "upstream_auth" } }, /Apple rejected/],
+    [{ code: 404, body: { ok: false, error: "not_found" } }, /Worker's address only/],
+  ]
+  for (const [response, hint] of cases) {
+    const env = load({ now: NOW, config: { ...CONFIG, ICLOUD_FEED_URL: FEED }, properties: { ICLOUD_FEED_TOKEN: TOKEN }, responses: [response] })
+    env.context.setupICloud()
+    assert.match(logText(env), hint)
+    assert.equal(env.triggers.length, 0)
   }
 })

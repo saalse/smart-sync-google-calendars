@@ -66,6 +66,7 @@ test("400 for bad parameters", async () => {
     "/version",
     "/version?calendars=%20",
     "/version?" + Array.from({ length: 11 }, (_, i) => "calendars=C" + i).join("&"),
+    "/version?calendars=*&calendars=Calendar%20A",
     "/busy?calendars=A",
     "/busy?calendars=A&start=2026-11-16&end=2026-11-17T00:00:00Z",
     "/busy?calendars=A&start=2026-11-17T00:00:00Z&end=2026-11-16T00:00:00Z",
@@ -272,6 +273,7 @@ test("logs contain no token, password, Apple ID, calendar names, ICS text or UID
     const cals = calendars()
     cals[0].objects = ["garbage"]
     await call(req("/busy", { query: BUSY_QUERY }), { logs, state: { calendars: cals } })
+    await call(req("/calendars"), { logs })
     // Default logger goes to console.log.
     await handleRequest(req("/version", { query: "?calendars=Calendar%20A" }), ENV, {}, { fetchImpl: createMockICloud({ calendars: calendars() }).fetchImpl })
   } finally {
@@ -283,4 +285,44 @@ test("logs contain no token, password, Apple ID, calendar names, ICS text or UID
   }
   assert.ok(logs.length >= 3)
   assert.deepEqual(Object.keys(logs[0]).sort(), ["cache", "calendars", "ms", "path", "status"])
+})
+
+// --- /calendars and calendars=* -----------------------------------------------------------------------------------
+
+test("/calendars lists event calendars by name, sorted, without duplicates or VTODO lists", async () => {
+  const cals = calendars().concat([{ name: "Calendar A", path: "cal-a2", ctag: "ctag-a2" }])
+  const { res, body } = await call(req("/calendars"), { state: { calendars: cals } })
+  assert.equal(res.status, 200)
+  assert.deepEqual(body, { ok: true, calendars: [{ name: "Calendar A" }, { name: "Calendar B + More" }] })
+})
+
+test("/calendars needs the token and the iCloud secrets", async () => {
+  assert.equal((await call(req("/calendars", { token: null }))).res.status, 401)
+  assert.equal((await call(req("/calendars"), { env: { ...ENV, ICLOUD_APPLE_ID: "" } })).body.error, "not_configured")
+})
+
+test("calendars=* means every event calendar, same version and intervals as naming them all", async () => {
+  const named = await call(req("/busy", { query: BUSY_QUERY }))
+  const all = await call(req("/busy", { query: BUSY_QUERY.replace(/calendars=[^&]*&calendars=[^&]*/, "calendars=*") }))
+  assert.equal(all.res.status, 200)
+  assert.equal(all.body.ok, true)
+  assert.equal(all.body.version, named.body.version)
+  assert.deepEqual(all.body.intervals, named.body.intervals)
+  assert.deepEqual(all.body.calendars.map((c) => c.name), ["Calendar A", "Calendar B + More"])
+  const v = await call(req("/version", { query: "?calendars=*" }))
+  assert.equal(v.body.version, named.body.version)
+})
+
+test("calendars=* version changes when a calendar is added", async () => {
+  const before = await call(req("/version", { query: "?calendars=*" }))
+  const cals = calendars().concat([{ name: "New", path: "new", ctag: "n1" }])
+  const after = await call(req("/version", { query: "?calendars=*" }), { state: { calendars: cals } })
+  assert.notEqual(after.body.version, before.body.version)
+})
+
+test("calendars=* with more than 10 event calendars → 400 asking to name them", async () => {
+  const cals = Array.from({ length: 11 }, (_, i) => ({ name: "C" + i, path: "c" + i, ctag: "t" + i }))
+  const { res, body } = await call(req("/version", { query: "?calendars=*" }), { state: { calendars: cals } })
+  assert.equal(res.status, 400)
+  assert.match(body.message, /name them/)
 })
