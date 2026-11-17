@@ -589,3 +589,54 @@ are pinned exactly in `package.json`.
     hosts.
 11. **Horizon** in `fetchICloudBusyIntervals` (§7.1) and `coverage` in the provider result (§9), from the owner's
     decision to stay on Free.
+
+## 18. Browser-only setup (planned, owner's decision 2026-11-17)
+
+The owner wants a setup that people without a terminal can follow, matching
+[`setup-ui-based.md`](./setup-ui-based.md). The Worker stays, so only "Busy" leaves iCloud. Node, npm, wrangler,
+openssl and clasp drop out of the owner's path; `worker/README.md` keeps the CLI path for developers.
+
+### 18.1 What the person does
+
+1. **Apple:** create an app-specific password (account.apple.com).
+2. **Apps Script:** add `ICloudSource.gs` like the other files; in `Config.gs` set `ICLOUD_FLOATING_TIMEZONE` and,
+   if wanted, `ICLOUD_CALENDARS`. Run `setupICloud`. It creates the feed token in Script Properties and says
+   where to copy it (Project Settings → Script Properties). It never logs the token.
+3. **Cloudflare:** click "Deploy to Cloudflare" in the README, sign in, connect GitHub, fill in three fields
+   (Apple ID, app password, feed token), deploy. Copy the `workers.dev` URL.
+4. **Apps Script:** paste the URL into `Config.gs` (`ICLOUD_FEED_URL`), run `setupICloud` again. It checks the
+   Worker, lists the iCloud calendar names, shows the next 7 days of busy time, and creates the 5-minute trigger.
+
+### 18.2 What changes in the code
+
+- **Worker:** `GET /calendars` returns the event calendars' display names (auth as before). `calendars` may be
+  `*` for all event calendars, so `ICLOUD_CALENDARS = []` means "all". `package.json` gets `cloudflare.bindings`
+  descriptions for the three secrets and `"packageManager": "npm@<exact local version>"`, so Workers Builds' `npm ci`
+  matches the lockfile. `.dev.vars.example` keeps one `NAME=` line per secret.
+- **Apps Script:** `setupICloud()` (idempotent: creates the token only if missing, replaces any existing
+  `checkICloudAndSync` trigger). `ICLOUD_FEED_URL` moves from Script Properties to `Config.gs` (it holds no
+  secret; the token stays in Script Properties). `appsscript.json` gets the `script.scriptapp` scope.
+- **Docs:** `icloud-setup.md` is rewritten around §18.1; README gets the button.
+
+### 18.3 Checked against the docs (context7 and Cloudflare docs, 2026-11-17)
+
+| Claim | Source | Result |
+|---|---|---|
+| Deploy button takes a repo subdirectory; the subdirectory must be self-contained and becomes the new repo's root | Cloudflare "Deploy to Cloudflare buttons" | confirmed; `worker/` has its own `package.json` and lockfile |
+| The button clones into the person's GitHub/GitLab (private repo allowed), builds with Workers Builds, deploys | same | confirmed; a GitHub or GitLab account is required |
+| Secrets listed in `.dev.vars.example` are asked for in the dashboard during deploy; `package.json` `cloudflare.bindings` adds descriptions | Cloudflare changelog 2025-07-29 | confirmed |
+| Source repo must be public | Deploy buttons, Limitations | confirmed; this repo is public. The button reads `main`, so `worker/` must be on `main` first |
+| Workers Builds: deploy command defaults to `npx wrangler deploy` with the wrangler from `package.json`; Free has 3,000 build minutes/month | Workers Builds configuration, limits | confirmed |
+| Lockfile from a newer npm can break `npm ci` in Workers Builds; fix with `packageManager` | Workers Builds troubleshooting | confirmed, hence the pin |
+| Every account has a `workers.dev` subdomain | workers.dev docs | confirmed |
+| A standalone Apps Script project cannot add menus or dialogs (`getUi` is for bound scripts only) | Apps Script "bound scripts", `Ui` | confirmed, so setup is a function run from the editor, as in the base setup |
+| A trigger can be created from code: `ScriptApp.newTrigger(...).timeBased().everyMinutes(5)`; `n` ∈ {1, 5, 10, 15, 30}; needs `script.scriptapp` | Apps Script reference | confirmed; the repo manifest lists scopes explicitly, so the scope must be added there |
+
+Not provable from docs, only by a real run: how the deploy form looks for this repo, and that the three fields
+land as Worker secrets. The owner's first run of §18.1 is that test.
+
+### 18.4 Trade-offs
+
+- The person needs Cloudflare and GitHub accounts.
+- The deployed Worker is a copy in their GitHub. Worker fixes don't reach them on their own: they pull the change
+  into their copy (Workers Builds redeploys on push) or redeploy with the button.
